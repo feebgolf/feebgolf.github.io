@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>feebgolf — engine tests</title>
+  <style>
+    body { font-family: ui-monospace, Menlo, monospace; background: #14181c; color: #dde; padding: 2rem; }
+    .pass { color: #6fdd8b; }
+    .fail { color: #ff7676; font-weight: bold; }
+    h1 { font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <h1>feebgolf engine tests</h1>
+  <div id="out">running…</div>
+  <script type="module">
+    import { runTests } from './js/tests.js';
+    const out = document.getElementById('out');
+    const results = runTests();
+    const failed = results.filter((r) => !r.pass).length;
+    out.innerHTML = results.map((r) => r.pass
+      ? `<div class="pass">ok &nbsp; ${r.name}</div>`
+      : `<div class="fail">FAIL ${r.name} — ${r.detail}</div>`).join('')
+      + `<p>${results.length - failed}/${results.length} passed</p>`;
+  </script>
+</body>
+</html>
