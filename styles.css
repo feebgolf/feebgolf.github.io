@@ -315,7 +315,9 @@ input[type="text"]:focus { border-color: var(--gold); }
   display: flex; align-items: center; justify-content: center;
   z-index: 30;
   backdrop-filter: blur(3px);
+  animation: overlay-in .4s ease both;
 }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 .overlay-box {
   --card-w: clamp(30px, 7vw, 46px);
   background: rgba(8, 30, 16, .92);
@@ -327,11 +329,54 @@ input[type="text"]:focus { border-color: var(--gold); }
   overflow-y: auto;
   text-align: center;
 }
-.overlay-box h2 { margin: 0 0 12px; color: var(--gold); }
+.overlay-box { animation: box-in .5s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes box-in {
+  from { opacity: 0; transform: translateY(26px) scale(.94); }
+  to { opacity: 1; transform: none; }
+}
+.overlay-box h2 {
+  margin: 0 0 4px;
+  font-size: .95rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+#roundend-winner {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+  margin: 0 0 16px;
+}
 #roundend-hands {
   display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; margin-bottom: 14px;
 }
-.re-hand { text-align: center; }
+.re-hand {
+  text-align: center;
+  padding: 10px 12px 8px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+}
+.re-hand.re-winner {
+  border-color: var(--gold);
+  background: rgba(245, 200, 76, .08);
+  box-shadow: 0 0 18px rgba(245, 200, 76, .35);
+}
+.re-ribbon {
+  display: inline-block;
+  background: var(--gold);
+  color: #40300a;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+  animation: ribbon-pop .45s cubic-bezier(.2, 1.6, .4, 1) .25s both;
+}
+@keyframes ribbon-pop { from { transform: scale(0); } to { transform: scale(1); } }
 .re-hand .re-name { font-size: .85rem; margin-bottom: 5px; }
 .re-hand .re-score { font-size: .8rem; opacity: .8; margin-top: 8px; }
 
@@ -385,4 +430,5 @@ input[type="text"]:focus { border-color: var(--gold); }
 @media (prefers-reduced-motion: reduce) {
   .card-inner { transition: none; }
   .active-player { animation: none; }
+  .overlay, .overlay-box, .re-ribbon { animation: none; }
 }

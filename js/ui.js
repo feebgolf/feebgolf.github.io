@@ -14,6 +14,10 @@ let mySeat = null;
 // 'none' | 'swapForDiscard' | 'drawnFlip'   (reset whenever a new view arrives)
 let mode = 'none';
 let toastTimer = null;
+// Round-end overlay pacing: let the final flips play out on the table first.
+let overlayTimer = null;
+let overlayShownFor = -1; // roundNumber the overlay has been revealed for
+const OVERLAY_DELAY_MS = 1600;
 
 export function init(handlers) {
   H = handlers;
@@ -121,6 +125,9 @@ export function showScreen(name) {
   }
   if (name === 'menu') {
     view = prev = null;
+    clearTimeout(overlayTimer);
+    overlayTimer = null;
+    overlayShownFor = -1;
     $('overlay-roundend').hidden = true;
     banner(null);
   }
@@ -358,15 +365,57 @@ function statusText(me, current, myTurn, iHold, canFlip) {
 // ===== round end overlay =====
 
 function renderRoundEnd() {
-  const show = view && view.phase === 'roundEnd';
-  $('overlay-roundend').hidden = !show;
-  if (!show) return;
+  const isEnd = view && view.phase === 'roundEnd';
+  if (!isEnd) {
+    clearTimeout(overlayTimer);
+    overlayTimer = null;
+    overlayShownFor = -1;
+    $('overlay-roundend').hidden = true;
+    return;
+  }
+  // Hold the overlay back briefly so everyone sees the last cards flip.
+  if (overlayShownFor !== view.roundNumber) {
+    if (!overlayTimer) {
+      overlayTimer = setTimeout(() => {
+        overlayTimer = null;
+        if (view && view.phase === 'roundEnd') {
+          overlayShownFor = view.roundNumber;
+          paint();
+        }
+      }, OVERLAY_DELAY_MS);
+    }
+    $('overlay-roundend').hidden = true;
+    return;
+  }
+  $('overlay-roundend').hidden = false;
 
   $('roundend-title').textContent = `Round ${view.roundNumber}`;
+
+  // Big winner banner: the round's lowest score takes it.
+  const scores = view.roundScores || [];
+  const bestRound = Math.min(...scores.map((r) => r.score));
+  const winners = scores.filter((r) => r.score === bestRound);
+  const winnerSeats = new Set(winners.map((w) => w.seatId));
+  const bannerEl = $('roundend-winner');
+  if (winners.length === 1) {
+    const w = winners[0];
+    bannerEl.textContent = w.seatId === mySeat
+      ? `🏆 You win the round with ${w.score}!`
+      : `🏆 ${w.name} wins the round with ${w.score}!`;
+  } else {
+    bannerEl.textContent = `🤝 Round tied at ${bestRound} — ${winners.map((w) => w.name).join(' & ')}`;
+  }
 
   $('roundend-hands').replaceChildren(...view.players.map((p) => {
     const box = document.createElement('div');
     box.className = 're-hand';
+    if (winnerSeats.has(p.seatId)) {
+      box.classList.add('re-winner');
+      const ribbon = document.createElement('div');
+      ribbon.className = 're-ribbon';
+      ribbon.textContent = winners.length > 1 ? '🏆 Tied' : '🏆 Winner';
+      box.appendChild(ribbon);
+    }
     const name = document.createElement('div');
     name.className = 're-name';
     name.textContent = p.name;
