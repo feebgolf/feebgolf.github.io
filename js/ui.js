@@ -18,6 +18,12 @@ let toastTimer = null;
 let overlayTimer = null;
 let overlayShownFor = -1; // roundNumber the overlay has been revealed for
 const OVERLAY_DELAY_MS = 1600;
+// Card-travel effects (FLIP-style: fly a clone from origin rect to dest rect).
+const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FLY_MS = 450;
+let activeFx = [];       // settle callbacks for in-flight clones
+let staggerOn = false;   // round-end mass reveal: cascade the flips
+let staggerCount = 0;
 
 export function init(handlers) {
   H = handlers;
@@ -102,10 +108,125 @@ const myPlayer = () => view?.players.find((p) => p.seatId === mySeat) || null;
 // ===== top-level render =====
 
 export function render(v, seat) {
-  if (v !== view) { prev = view; view = v; mode = 'none'; }
+  const isNew = v !== view;
+  let moves = [];
+  if (isNew) {
+    mySeat = seat;
+    // Plan card flights from the OLD DOM before it gets torn down.
+    moves = planMoves(view, v)
+      .map((m) => ({ ...m, fromRect: rectOf(m.from) }))
+      .filter((m) => m.fromRect);
+    settleFx();
+    staggerOn = !!(view && view.phase === 'play' && v && v.phase === 'roundEnd');
+    prev = view; view = v; mode = 'none';
+  }
   mySeat = seat;
   if (!view) { showScreen('menu'); return; }
+  staggerCount = 0;
   paint();
+  if (isNew && moves.length) launchFx(moves);
+}
+
+// ===== card-travel effects =====
+
+function settleFx() {
+  for (const f of activeFx) f();
+  activeFx = [];
+}
+
+function rectOf(sel) {
+  const el = document.querySelector(sel);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return r.width ? r : null;
+}
+
+const cellSel = (seat, i) => (seat === mySeat
+  ? `#my-grid [data-i="${i}"]`
+  : `.opp[data-seat="${seat}"] [data-i="${i}"]`);
+
+// Turn the view diff (via lastMove) into flights. `card` is what the flying
+// card shows on landing; `flip` starts it face-down and flips it mid-air.
+function planMoves(oldV, newV) {
+  if (REDUCED_MOTION || !oldV || !newV) return [];
+  const lm = newV.lastMove;
+  if (!lm || lm.seq === oldV.lastMove?.seq) return [];
+  if (oldV.phase === 'lobby' || newV.phase === 'lobby') return [];
+  if (newV.roundNumber !== oldV.roundNumber) return [];
+  const oldP = oldV.players.find((p) => p.seatId === lm.seat);
+  const newP = newV.players.find((p) => p.seatId === lm.seat);
+  if (!oldP || !newP) return [];
+  const oldCell = lm.i !== null ? oldP.hand[lm.i] : null;
+  const newCell = lm.i !== null ? newP.hand[lm.i] : null;
+  const mine = lm.seat === mySeat; // the mover already saw their drawn card
+  const toDiscard = oldCell && {
+    from: cellSel(lm.seat, lm.i),
+    to: '#discard-card .card',
+    card: newV.discardTop,
+    flip: !oldCell.faceUp,
+  };
+  switch (lm.a) {
+    case 'drawDeck':
+      return [{ from: '#deck-pile .card', to: '#drawn-card .card',
+        card: newV.drawnCard, flip: !!newV.drawnCard }];
+    case 'takeDiscard':
+      return [
+        { from: '#discard-card .card', to: cellSel(lm.seat, lm.i), card: newCell, flip: false },
+        toDiscard,
+      ];
+    case 'swapDrawn':
+      return [
+        { from: '#drawn-card .card', to: cellSel(lm.seat, lm.i), card: newCell, flip: !mine },
+        toDiscard,
+      ];
+    case 'discardDrawn':
+      return [{ from: '#drawn-card .card', to: '#discard-card .card',
+        card: newV.discardTop, flip: !mine }];
+    default:
+      return []; // setup flips animate in place
+  }
+}
+
+function launchFx(moves) {
+  for (const m of moves) {
+    const destEl = document.querySelector(m.to);
+    if (!destEl) continue;
+    const dr = destEl.getBoundingClientRect();
+    if (!dr.width) continue;
+    const or = m.fromRect;
+    const clone = cardEl(m.card ? { ...m.card, faceUp: true } : { faceUp: false });
+    clone.classList.add('fx-card');
+    clone.style.width = or.width + 'px';
+    clone.style.left = or.left + 'px';
+    clone.style.top = or.top + 'px';
+    const inner = clone.querySelector('.card-inner');
+    if (m.flip && inner) inner.classList.remove('up'); // start face-down, flip mid-air
+    document.body.appendChild(clone);
+    destEl.style.visibility = 'hidden';
+
+    const dx = dr.left - or.left;
+    const dy = dr.top - or.top;
+    const s = dr.width / or.width;
+    const midS = ((1 + s) / 2) * 1.08;
+    const anim = clone.animate([
+      { transform: 'translate(0, 0) scale(1)' },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 22}px) scale(${midS})`, offset: 0.5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
+    ], { duration: FLY_MS, easing: 'cubic-bezier(.3, .6, .3, 1)', fill: 'forwards' });
+    if (m.flip && inner) setTimeout(() => inner.classList.add('up'), 90);
+
+    let done = false;
+    const settle = () => {
+      if (done) return;
+      done = true;
+      clone.remove();
+      destEl.style.visibility = '';
+      activeFx = activeFx.filter((f) => f !== settle);
+    };
+    activeFx.push(settle);
+    anim.onfinish = settle;
+    setTimeout(settle, FLY_MS + 80); // onfinish can be unreliable; guarantee cleanup
+  }
 }
 
 function paint() {
@@ -125,6 +246,7 @@ export function showScreen(name) {
   }
   if (name === 'menu') {
     view = prev = null;
+    settleFx();
     clearTimeout(overlayTimer);
     overlayTimer = null;
     overlayShownFor = -1;
@@ -214,8 +336,18 @@ function cardEl(card, { animate = false, i = null } = {}) {
   el.appendChild(inner);
 
   if (card.faceUp) {
-    if (animate) requestAnimationFrame(() => requestAnimationFrame(() => inner.classList.add('up')));
-    else inner.classList.add('up');
+    if (animate) {
+      const go = () => {
+        inner.classList.add('up');
+        el.classList.add('flipping');
+        setTimeout(() => el.classList.remove('flipping'), 600);
+      };
+      const delay = staggerOn ? staggerCount++ * 90 : 0;
+      if (delay) setTimeout(go, delay);
+      else requestAnimationFrame(() => requestAnimationFrame(go));
+    } else {
+      inner.classList.add('up');
+    }
   }
   return el;
 }
@@ -251,6 +383,7 @@ function renderGame() {
   $('opponents').replaceChildren(...opps.map((p) => {
     const box = document.createElement('div');
     box.className = 'opp';
+    box.dataset.seat = p.seatId;
     if (view.phase === 'play' && current?.seatId === p.seatId) box.classList.add('active-player');
     if (!p.connected) box.classList.add('disconnected');
     const name = document.createElement('div');
@@ -287,13 +420,15 @@ function renderGame() {
   if (myTurn && !view.drawnBy && view.discardTop) discEl.classList.add('clickable');
   disc.replaceChildren(discEl);
 
-  const showDrawn = !!view.drawnBy;
-  $('drawn-slot').hidden = !showDrawn;
-  if (showDrawn) {
-    // drawer sees the card; everyone else sees a back
-    $('drawn-card').replaceChildren(
-      cardEl(view.drawnCard ? { ...view.drawnCard, faceUp: true } : { faceUp: false }),
-    );
+  // Keep the drawn slot in the layout for the whole play phase so the pile
+  // row never reflows and card flights have a stable target.
+  const showDrawnSlot = view.phase === 'play' || !!view.drawnBy;
+  $('drawn-slot').hidden = !showDrawnSlot;
+  if (showDrawnSlot) {
+    // drawer sees the card; everyone else sees a back; empty slot otherwise
+    $('drawn-card').replaceChildren(view.drawnBy
+      ? cardEl(view.drawnCard ? { ...view.drawnCard, faceUp: true } : { faceUp: false })
+      : cardEl(null));
   }
   const canFlip = me && me.hand.some((c) => !c.faceUp);
   $('drawn-actions').hidden = !iHold;

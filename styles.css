@@ -189,7 +189,7 @@ input[type="text"]:focus { border-color: var(--gold); }
 .card-inner {
   position: absolute; inset: 0;
   transform-style: preserve-3d;
-  transition: transform .4s cubic-bezier(.3, 1.2, .5, 1);
+  transition: transform .45s cubic-bezier(.3, 1.4, .4, 1);
 }
 .card-inner.up { transform: rotateY(180deg); }
 .card-face, .card-back {
@@ -239,6 +239,25 @@ input[type="text"]:focus { border-color: var(--gold); }
   font-size: .78rem;
   padding: 2px 9px;
   font-family: ui-monospace, Menlo, monospace;
+}
+
+/* a card flipping in place lifts slightly off the felt */
+.card.flipping { z-index: 5; animation: flip-lift .55s ease; }
+@keyframes flip-lift {
+  50% { transform: translateY(-7px) scale(1.09); }
+}
+
+/* flying clones (created by ui.js for card travel) */
+.fx-card {
+  position: fixed;
+  margin: 0;
+  z-index: 26;
+  pointer-events: none;
+  transform-origin: top left;
+  will-change: transform;
+}
+.fx-card .card-face, .fx-card .card-back {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
 }
 
 /* clickable affordance */
@@ -476,5 +495,5 @@ input[type="text"]:focus { border-color: var(--gold); }
 @media (prefers-reduced-motion: reduce) {
   .card-inner { transition: none; }
   .active-player { animation: none; }
-  .overlay, .overlay-box, .re-ribbon { animation: none; }
+  .overlay, .overlay-box, .re-ribbon, .card.flipping { animation: none; }
 }

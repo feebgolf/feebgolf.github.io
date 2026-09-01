@@ -390,6 +390,33 @@ export function runTests() {
     eq(redact(s, other.seatId).drawnBy, cur.seatId, 'but sees who drew:');
   });
 
+  // ---- lastMove (drives UI animations) ----
+  test('redact carries lastMove with an increasing seq', () => {
+    const s = newGame(2);
+    finishSetup(s);
+    const p = s.players[s.turnIndex];
+    applyAction(s, p.seatId, { a: 'drawDeck' });
+    const v1 = redact(s, 's0');
+    eq(v1.lastMove.a, 'drawDeck');
+    eq(v1.lastMove.seat, p.seatId);
+    applyAction(s, p.seatId, { a: 'swapDrawn', i: 2 });
+    const v2 = redact(s, 's0');
+    eq(v2.lastMove.a, 'swapDrawn');
+    eq(v2.lastMove.i, 2);
+    eq(v2.lastMove.seq > v1.lastMove.seq, true, 'seq increases:');
+  });
+  test('rejected actions leave lastMove untouched; new round clears it', () => {
+    const s = newGame(2);
+    finishSetup(s);
+    const p = s.players[s.turnIndex];
+    applyAction(s, p.seatId, { a: 'drawDeck' });
+    const seq = s.lastMove.seq;
+    applyAction(s, p.seatId, { a: 'drawDeck' }); // rejected: already drew
+    eq(s.lastMove.seq, seq);
+    startRound(s);
+    eq(s.lastMove, null);
+  });
+
   // ---- fuzz: random full games never crash, invariants hold ----
   test('fuzz: 40 random games (2-4 players) complete with card conservation', () => {
     for (let g = 0; g < 40; g++) {

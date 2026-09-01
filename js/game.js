@@ -85,6 +85,8 @@ export function createState(rng = Math.random) {
     discard: [],         // last element = top
     roundScores: null,
     log: [],
+    lastMove: null,      // { a, seat, i, seq } — lets the UI animate the move
+    moveSeq: 0,
     players: [],         // { seatId, peerId, name, connected, total, setupFlips, hand }
     rng,                 // host-only; never serialized (redact() omits it)
   };
@@ -132,6 +134,7 @@ export function startRound(state) {
   state.finisherIndex = null;
   state.roundScores = null;
   state.roundNumber++;
+  state.lastMove = null;
   state.turnIndex = firstIndex !== null ? firstIndex : Math.floor(state.rng() * state.players.length);
   state.phase = 'setup';
   state.log = [];
@@ -153,6 +156,10 @@ function reshuffle(state) {
 const OK = { ok: true };
 const fail = (msg) => ({ ok: false, msg });
 
+function noteMove(state, seatId, act) {
+  state.lastMove = { a: act.a, seat: seatId, i: act.i ?? null, seq: ++state.moveSeq };
+}
+
 // The five game actions. Every rejection returns {ok:false, msg} and mutates nothing.
 export function applyAction(state, seatId, act) {
   const pi = state.players.findIndex((p) => p.seatId === seatId);
@@ -167,6 +174,7 @@ export function applyAction(state, seatId, act) {
     if (c.faceUp) return fail('That card is already face up');
     c.faceUp = true;
     p.setupFlips++;
+    noteMove(state, seatId, act);
     if (state.players.every((q) => q.setupFlips >= 2)) {
       state.phase = 'play';
       addLog(state, `${state.players[state.turnIndex].name} goes first`);
@@ -189,6 +197,7 @@ export function applyAction(state, seatId, act) {
       state.discard.push({ rank: c.rank, suit: c.suit });
       p.hand[act.i] = { rank: taken.rank, suit: taken.suit, faceUp: true };
       addLog(state, `${p.name} took ${cardName(taken)}, discarding ${cardName(c)}`);
+      noteMove(state, seatId, act);
       finishTurn(state, p);
       return OK;
     }
@@ -197,6 +206,7 @@ export function applyAction(state, seatId, act) {
       if (state.deck.length === 0 && !reshuffle(state)) return fail('No cards left to draw');
       state.drawn = state.deck.pop();
       addLog(state, `${p.name} drew from the deck`);
+      noteMove(state, seatId, act);
       return OK;
     }
     case 'swapDrawn': {
@@ -207,6 +217,7 @@ export function applyAction(state, seatId, act) {
       p.hand[act.i] = { rank: state.drawn.rank, suit: state.drawn.suit, faceUp: true };
       addLog(state, `${p.name} kept ${cardName(state.drawn)}, discarding ${cardName(c)}`);
       state.drawn = null;
+      noteMove(state, seatId, act);
       finishTurn(state, p);
       return OK;
     }
@@ -220,6 +231,7 @@ export function applyAction(state, seatId, act) {
       addLog(state, `${p.name} discarded ${cardName(state.drawn)} and flipped ${cardName(c)}`);
       state.drawn = null;
       c.faceUp = true;
+      noteMove(state, seatId, act);
       finishTurn(state, p);
       return OK;
     }
@@ -287,6 +299,7 @@ export function redact(state, viewerSeatId) {
     log: state.log.slice(-6),
     deckCount: state.deck.length,
     discardTop: state.discard.length ? state.discard[state.discard.length - 1] : null,
+    lastMove: state.lastMove,
     drawnBy: state.drawn && cur ? cur.seatId : null,
     drawnCard: state.drawn && cur && cur.seatId === viewerSeatId ? state.drawn : null,
     players: state.players.map((p) => ({
