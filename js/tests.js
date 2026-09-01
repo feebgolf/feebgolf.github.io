@@ -1,7 +1,7 @@
 // tests.js — assertions for the rules engine. Run via test.html in a browser
 // or `node js/run-tests.mjs`. Returns [{name, pass, detail}].
 import {
-  makeDeck, shuffle, cardScore, handScore, cancelledColumns,
+  makeDeck, shuffle, cardScore, handScore, cancelledColumns, visibleScore,
   createState, addPlayer, startRound, applyAction, redact, finalScores,
 } from './game.js';
 
@@ -287,6 +287,27 @@ export function runTests() {
     eq(applyAction(s, 's0', { a: 'drawDeck' }).ok, false);
     eq(applyAction(s, 's1', { a: 'drawDeck' }).ok, false);
   });
+  // ---- visible (live) score ----
+  const D = (rank, suit = 's') => ({ rank, suit, faceUp: false });
+  test('visibleScore: all face down = 0', () =>
+    eq(visibleScore([D('J'), D('Q'), D('9'), D('10'), D('5'), D('7')]), 0));
+  test('visibleScore: face-up cards sum, face-down count 0', () =>
+    eq(visibleScore([C('J'), D('Q'), C('2'), D('10'), C('5'), D('7')]), 13));
+  test('visibleScore: column cancels only when both cards are face up', () => {
+    eq(visibleScore([C('9', 's'), D('4'), D('5'), C('9', 'h'), D('7'), D('8')]), 0);
+    eq(visibleScore([C('9', 's'), D('4'), D('5'), D('9', 'h'), D('7'), D('8')]), 9);
+  });
+  test('visibleScore matches handScore when everything is face up', () => {
+    const hand = [C('2', 's'), C('K'), C('4'), C('2', 'h'), C('A'), C('Q')];
+    eq(visibleScore(hand), handScore(hand));
+  });
+  test('redact includes visibleScore per player', () => {
+    const s = newGame(2);
+    finishSetup(s);
+    const v = redact(s, 's0');
+    for (const p of v.players) eq(typeof p.visibleScore, 'number');
+  });
+
   // ---- next-round start order ----
   test('loser of the previous round goes first next round', () => {
     const s = newGame(3, 77);

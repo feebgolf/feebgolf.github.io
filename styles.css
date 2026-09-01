@@ -410,6 +410,36 @@ input[type="text"]:focus { border-color: var(--gold); }
 }
 #banner .btn { margin-left: 10px; }
 
+/* ===== live round-score panel ===== */
+#live-scores {
+  position: fixed;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  background: rgba(0, 0, 0, .35);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: .8rem;
+  min-width: 88px;
+}
+.ls-title {
+  font-size: .62rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  opacity: .55;
+  text-align: center;
+  margin-bottom: 2px;
+}
+.ls-row { display: flex; justify-content: space-between; gap: 12px; opacity: .85; }
+.ls-row.ls-active { opacity: 1; color: var(--gold); }
+.ls-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 9ch; }
+.ls-score { font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
+
 /* ===== dev seat switcher ===== */
 #dev-bar {
   position: fixed; top: 6px; right: 6px; z-index: 50;
@@ -421,6 +451,22 @@ input[type="text"]:focus { border-color: var(--gold); }
   :root { --card-w: clamp(58px, 21vw, 78px); }
   .opp { --card-w: clamp(30px, 9vw, 44px); }
   .title { font-size: 2.4rem; }
+  /* the side panel becomes a slim strip across the top */
+  .table { padding-top: 34px; }
+  #live-scores {
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 12px;
+    min-width: 0;
+    max-width: 96vw;
+    overflow-x: auto;
+  }
+  .ls-title { display: none; }
+  .ls-row { gap: 5px; flex: 0 0 auto; }
 }
 @media (max-height: 620px) {
   :root { --card-w: 56px; }

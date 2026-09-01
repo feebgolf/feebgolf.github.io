@@ -46,6 +46,19 @@ export function handScore(hand) {
   return total;
 }
 
+// Live score from what's showing: face-down cards count 0, and a column
+// only cancels when BOTH cards are face up with matching ranks.
+export function visibleScore(hand) {
+  let total = 0;
+  for (let c = 0; c < 3; c++) {
+    const a = hand[c], b = hand[c + 3];
+    if (a.faceUp && b.faceUp && a.rank === b.rank) continue;
+    if (a.faceUp) total += cardScore(a);
+    if (b.faceUp) total += cardScore(b);
+  }
+  return total;
+}
+
 // Which columns cancel (for UI highlighting at round end).
 export function cancelledColumns(hand) {
   const cols = [];
@@ -281,6 +294,7 @@ export function redact(state, viewerSeatId) {
       name: p.name,
       connected: p.connected,
       total: p.total,
+      visibleScore: p.hand.length ? visibleScore(p.hand) : 0,
       setupFlips: p.setupFlips,
       hand: p.hand.map((c) => (c.faceUp
         ? { rank: c.rank, suit: c.suit, faceUp: true }

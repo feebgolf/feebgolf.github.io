@@ -302,6 +302,23 @@ function renderGame() {
   $('btn-swap-drawn').hidden = mode !== 'drawnFlip';
   $('btn-cancel-mode').hidden = true;
 
+  // --- live round-score panel (face-down cards count as 0) ---
+  const ls = $('live-scores');
+  ls.replaceChildren(ls.firstElementChild); // keep the title
+  for (const p of view.players) {
+    const row = document.createElement('div');
+    row.className = 'ls-row';
+    if (view.phase === 'play' && current?.seatId === p.seatId) row.classList.add('ls-active');
+    const nm = document.createElement('span');
+    nm.className = 'ls-name';
+    nm.textContent = p.seatId === mySeat ? 'You' : p.name;
+    const sc = document.createElement('span');
+    sc.className = 'ls-score';
+    sc.textContent = typeof p.visibleScore === 'number' ? p.visibleScore : '–';
+    row.append(nm, sc);
+    ls.appendChild(row);
+  }
+
   // --- log ---
   $('log').replaceChildren(...(view.log || []).slice(-1).map((line) => {
     const d = document.createElement('div');
