@@ -15,7 +15,8 @@ Pages, and players connect directly to each other with WebRTC
 ### House rules
 
 - Everyone gets 6 face-down cards in a 2×3 grid; one card starts the discard.
-- Before play, everyone flips 2 of their own cards. A random player goes first.
+- Before play, everyone flips 2 of their own cards. A random player goes first
+  in round 1; after that, the loser of the previous round goes first.
 - On your turn, either:
   1. **Take the discard** and swap it with any of your 6 cards, or
   2. **Draw** from the deck, then either **swap** it with any of your cards,

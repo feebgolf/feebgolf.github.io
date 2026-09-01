@@ -94,6 +94,20 @@ function addLog(state, msg) {
 
 // Deal a fresh round: new shuffled deck, 6 face-down cards each, one discard.
 export function startRound(state) {
+  // The loser of the previous round goes first (random among tied losers);
+  // the first round of a match starts with a random player.
+  let firstIndex = null;
+  if (state.roundScores) {
+    let worst = -Infinity;
+    const losers = [];
+    for (const rs of state.roundScores) {
+      const idx = state.players.findIndex((p) => p.seatId === rs.seatId);
+      if (idx === -1) continue; // player left between rounds
+      if (rs.score > worst) { worst = rs.score; losers.length = 0; }
+      if (rs.score === worst) losers.push(idx);
+    }
+    if (losers.length) firstIndex = losers[Math.floor(state.rng() * losers.length)];
+  }
   const deck = shuffle(makeDeck(), state.rng);
   for (const p of state.players) {
     p.hand = deck.splice(0, 6).map((c) => ({ rank: c.rank, suit: c.suit, faceUp: false }));
@@ -105,10 +119,12 @@ export function startRound(state) {
   state.finisherIndex = null;
   state.roundScores = null;
   state.roundNumber++;
-  state.turnIndex = Math.floor(state.rng() * state.players.length);
+  state.turnIndex = firstIndex !== null ? firstIndex : Math.floor(state.rng() * state.players.length);
   state.phase = 'setup';
   state.log = [];
-  addLog(state, `Round ${state.roundNumber} — everyone flips 2 cards`);
+  addLog(state, firstIndex !== null
+    ? `Round ${state.roundNumber} — ${state.players[state.turnIndex].name} lost last round and goes first`
+    : `Round ${state.roundNumber} — everyone flips 2 cards`);
 }
 
 // Deck empty? Shuffle the discard (minus its top card) back in.

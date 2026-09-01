@@ -287,6 +287,50 @@ export function runTests() {
     eq(applyAction(s, 's0', { a: 'drawDeck' }).ok, false);
     eq(applyAction(s, 's1', { a: 'drawDeck' }).ok, false);
   });
+  // ---- next-round start order ----
+  test('loser of the previous round goes first next round', () => {
+    const s = newGame(3, 77);
+    s.roundScores = [
+      { seatId: 's0', score: 3 },
+      { seatId: 's1', score: 21 },
+      { seatId: 's2', score: 8 },
+    ];
+    startRound(s);
+    eq(s.turnIndex, 1);
+    eq(s.log[0].includes('lost last round and goes first'), true, 'log mentions it:');
+  });
+  test('tied losers: first player is one of them', () => {
+    const s = newGame(3, 78);
+    s.roundScores = [
+      { seatId: 's0', score: 15 },
+      { seatId: 's1', score: 15 },
+      { seatId: 's2', score: 2 },
+    ];
+    startRound(s);
+    eq(s.turnIndex === 0 || s.turnIndex === 1, true, 'one of the tied losers:');
+  });
+  test('loser who left the lobby is skipped for first-player pick', () => {
+    const s = newGame(2, 79);
+    s.roundScores = [
+      { seatId: 's0', score: 5 },
+      { seatId: 's1', score: 9 },
+      { seatId: 'gone', score: 40 }, // pruned player from last round
+    ];
+    startRound(s);
+    eq(s.turnIndex, 1);
+  });
+  test('played round: highest scorer opens the rematch', () => {
+    const s = newGame(2, 81);
+    finishSetup(s);
+    let guard = 0;
+    while (s.phase === 'play' && guard++ < 200) revealAllTurn(s);
+    eq(s.phase, 'roundEnd');
+    const worst = Math.max(...s.roundScores.map((r) => r.score));
+    const loserSeats = s.roundScores.filter((r) => r.score === worst).map((r) => r.seatId);
+    startRound(s);
+    eq(loserSeats.includes(s.players[s.turnIndex].seatId), true, 'loser opens:');
+  });
+
   test('finalScores sorts lowest first', () => {
     const s = newGame(3);
     s.players[0].total = 12;
