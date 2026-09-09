@@ -28,14 +28,13 @@ const mode = () => modeOf(app.modeId);
 // the view. Idempotent: the module cache makes re-entry instant.
 async function activateMode(id, { needEngine }) {
   const m = modeOf(id);
-  const [, engine] = await Promise.all([
-    // The per-mode view module arrives with the ui.js split; until then ui.js
-    // still renders golf directly.
-    m.view ? m.view() : null,
+  const [view, engine] = await Promise.all([
+    m.view(),
     needEngine ? m.engine() : null,
   ]);
   app.modeId = m.id;
   app.engine = engine;
+  ui.useMode(m.id, view);
   // A view can arrive while the import is still in flight; state messages are
   // full snapshots, so painting the freshest one here is all the fix needed.
   if (app.view) ui.render(app.view, app.mySeat);
@@ -237,6 +236,10 @@ function joinGame(code, name) {
         case 'welcome':
           app.mySeat = msg.seatId;
           ui.menuStatus(null);
+          // Guests learn the game from the host. The import is fire-and-forget:
+          // state messages are full snapshots, so activateMode() paints the
+          // freshest one if a view lands while the module is still loading.
+          activateMode(DEFAULT_MODE, { needEngine: false });
           break;
         case 'reject':
           resetToMenu(REJECT_TEXT[msg.reason] || 'Could not join that game.');
@@ -270,6 +273,7 @@ function resetToMenu(errorMsg = null) {
   app.view = null;
   app.connToSeat.clear();
   app.seatToConn.clear();
+  ui.useMode(null);
   ui.showScreen('menu');
   ui.menuStatus(null);
   ui.menuError(errorMsg);

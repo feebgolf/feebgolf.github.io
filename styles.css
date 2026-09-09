@@ -280,6 +280,9 @@ input[type="text"]:focus { border-color: var(--gold); }
 }
 
 /* --- center strip --- */
+#table-root { display: contents; }
+
+/* --- golf table layout (scoped: other modes bring their own) --- */
 #table-center {
   display: flex;
   flex-direction: column;
@@ -368,7 +371,7 @@ input[type="text"]:focus { border-color: var(--gold); }
   text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
   margin: 0 0 16px;
 }
-#roundend-hands {
+#roundend-body {
   display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; margin-bottom: 14px;
 }
 .re-hand {

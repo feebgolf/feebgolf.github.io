@@ -14,6 +14,7 @@ export const MODES = {
     maxPlayers: 4,
     lowWins: true, // lowest running total wins — drives the shared scoreboard
     engine: () => import('./golf/engine.js'),
+    view: () => import('./golf/view.js'),
     tests: () => import('./golf/tests.js'),
   },
 };
