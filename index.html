@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
   <title>feebgolf 🃏</title>
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
 </head>
 <body>
@@ -134,9 +134,34 @@
     </div>
   </template>
 
+  <template id="tpl-table-mahjong">
+    <div id="mj-opponents"></div>
+    <div id="table-center">
+      <div class="piles">
+        <div id="mj-wall" class="pile">
+          <div class="card back deck-card"><span class="deck-count"></span></div>
+          <span class="pile-label">wall</span>
+        </div>
+        <div id="mj-discard" class="pile">
+          <div id="mj-discard-tile"></div>
+          <span class="pile-label">discard</span>
+        </div>
+      </div>
+      <div id="mj-claims" hidden></div>
+      <div id="log"></div>
+    </div>
+    <div id="my-area">
+      <div id="my-header"></div>
+      <div id="mj-my-melds" class="mj-mine-melds"></div>
+      <div id="mj-hand" class="mj-hand"></div>
+      <div id="mj-actions"></div>
+      <div id="status-bar"></div>
+    </div>
+  </template>
+
   <div id="toast" hidden></div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=7"></script>
+  <script type="module" src="js/main.js?v=8"></script>
 </body>
 </html>

@@ -599,3 +599,96 @@ input[type="text"]:focus { border-color: var(--gold); }
 .gin-cardrow.gin-meld .card-face { box-shadow: inset 0 0 0 2px #6fdd8b; }
 .gin-cardrow.gin-laidoff .card-face { box-shadow: inset 0 0 0 2px #7cc4ff; }
 .gin-cardrow.gin-dead { opacity: .62; }
+
+/* ===== mahjong table ===== */
+#table-root.mahjong { --tile-w: clamp(26px, 6vw, 40px); }
+
+/* A tile: a number over its suit mark, which renders the same everywhere.
+   The Unicode mahjong glyphs are in each tile's tooltip. */
+.mj-tile {
+  width: var(--tile-w);
+  height: calc(var(--tile-w) * 1.34);
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; line-height: 1;
+  background: linear-gradient(#fdfaf2, #ece4d2);
+  color: #1d2b22;
+  border: 1px solid rgba(0, 0, 0, .3);
+  border-bottom-width: 2px;
+  border-radius: calc(var(--tile-w) * .16);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  user-select: none;
+}
+.mj-tile .mj-top { font-size: calc(var(--tile-w) * .5); font-weight: 700; }
+.mj-tile .mj-bot { font-size: calc(var(--tile-w) * .34); opacity: .72; }
+.mj-tile.small { --tile-w: clamp(17px, 4vw, 26px); }
+.mj-tile.back {
+  background: linear-gradient(#1f5d3a, #17442b);
+  border-color: rgba(0, 0, 0, .45);
+}
+.mj-tile.empty { background: rgba(255, 255, 255, .07); border-style: dashed; box-shadow: none; }
+.mj-tile.mj-suit-0 .mj-top { color: #1d3f8f; }   /* characters */
+.mj-tile.mj-suit-1 .mj-top { color: #1c6b39; }   /* bamboo */
+.mj-tile.mj-suit-2 .mj-top { color: #8f2f1d; }   /* dots */
+.mj-tile.mj-dragon .mj-top { color: #b0181c; }
+.mj-tile.mj-wind .mj-top { color: #23303f; }
+.mj-tile.mj-bonus { background: linear-gradient(#fff8e6, #f4e6bd); }
+.mj-tile.mj-bonus .mj-top { color: #a4741c; }
+.mj-tile.clickable { cursor: pointer; }
+.mj-tile.clickable:hover { transform: translateY(-6px); transition: transform .12s; }
+.mj-tile.just-drew { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+.mj-row { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+.mj-melds, .mj-mine-melds { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.mj-meld { display: flex; gap: 1px; }
+.mj-meld.concealed { opacity: .82; }
+.mj-pond { max-width: min(46vw, 260px); opacity: .9; }
+.mj-flowers { opacity: .95; }
+
+/* --- opponents --- */
+#mj-opponents {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  padding: 8px 6px 0;
+}
+.mj-opp {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 8px; border-radius: 12px;
+  background: rgba(0, 0, 0, .2);
+  border: 1px solid rgba(255, 255, 255, .12);
+  max-width: min(48vw, 300px);
+}
+.mj-opp-head { display: flex; align-items: center; gap: 6px; font-size: .8rem; }
+.mj-opp-name { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mj-opp-cards { opacity: .75; font-variant-numeric: tabular-nums; }
+.mj-opp .pts { font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
+.mj-answered { color: #6fdd8b; }
+.mj-wind-tag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(245, 200, 76, .2); color: var(--gold);
+  font-size: .7rem; font-weight: 700;
+}
+.mj-dealer-tag {
+  margin-left: 7px; font-size: .66rem; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--gold);
+}
+
+/* --- the claim window --- */
+#mj-claims {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+  padding: 8px 10px; border-radius: 12px;
+  background: rgba(245, 200, 76, .13);
+  border: 1px solid rgba(245, 200, 76, .45);
+}
+.mj-claim-label {
+  font-size: .8rem; color: var(--gold); font-variant-numeric: tabular-nums;
+}
+
+.mj-hand { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; padding: 0 6px; }
+#mj-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+
+/* --- mahjong round-end breakdown --- */
+.mj-result { flex-basis: 100%; font-size: .95rem; margin-bottom: 4px; }
+.mj-patterns { font-size: .78rem; opacity: .75; margin-top: 3px; }
+.mj-re { min-width: min(300px, 84vw); }

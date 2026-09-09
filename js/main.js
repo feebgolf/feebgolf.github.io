@@ -19,6 +19,7 @@ const app = {
   netG: null,
   connToSeat: new Map(),
   seatToConn: new Map(),
+  timer: null,         // pending engine deadline (mahjong's claim window)
 };
 
 // The registry entry for the game in progress (falls back before one is chosen).
@@ -131,6 +132,22 @@ function broadcast() {
   }
   app.view = app.engine.redact(s, app.mySeat);
   ui.render(app.view, app.mySeat);
+  scheduleEngineTimer();
+}
+
+// Some games run on a clock — mahjong's claim window closes whether or not
+// everyone answers. Engines can't read the clock, so they name a moment they
+// want waking and the host fires the action then.
+function scheduleEngineTimer() {
+  clearTimeout(app.timer);
+  app.timer = null;
+  if (!app.state || !app.engine?.pendingTimer) return;
+  const t = app.engine.pendingTimer(app.state);
+  if (!t) return;
+  app.timer = setTimeout(
+    () => handleAction(app.state.hostSeat, t.act),
+    Math.max(0, t.at - Date.now()) + 40, // a beat past the deadline
+  );
 }
 
 function bind(conn, seatId) {
@@ -292,6 +309,8 @@ function resetToMenu(errorMsg = null) {
   app.engine = null;
   app.state = null;
   app.view = null;
+  clearTimeout(app.timer);
+  app.timer = null;
   app.connToSeat.clear();
   app.seatToConn.clear();
   ui.useMode(null);

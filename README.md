@@ -9,7 +9,7 @@ public broker).
 |---|---|---|
 | **Golf** (six-card) | 2–4 | playable |
 | **Gin Rummy** (multi-deck, knocker vs. everyone) | 2–8 | playable |
-| **Mahjong** (Hong Kong) | 4 | in progress |
+| **Mahjong** (Hong Kong) | 4 | playable |
 
 The host picks the game when they create the room; joiners get whatever the
 host is running. Games in progress are registered but not offered in the menu.
@@ -72,6 +72,46 @@ knocker at once**, and the deck count grows with the table.
 
 Your hand shows its melds tinted and a live deadwood count, so you can see
 where you stand without doing the arithmetic.
+
+### Mahjong house rules
+
+Hong Kong / Cantonese, four players, with the common faan patterns rather than
+the full table.
+
+- 144 tiles (136 without flowers). Everyone gets 13; the dealer opens.
+- Draw from the wall, then discard. Drawing a flower sets it aside and you take
+  a replacement.
+- After every discard there's a short window in which anyone may **pung**
+  (a triplet) or **kong** (four), the player to the discarder's left may
+  **chow** (a run), and anyone who can may declare **mahjong**. Mahjong beats
+  kong beats pung beats chow; between equal claims the seat nearest the
+  discarder wins. Anyone with nothing to claim is passed automatically, so the
+  table only ever waits on a real decision — and the window closes on its own
+  when the clock runs out.
+- You can also declare a **concealed kong** from your own hand, or add a fourth
+  tile to a pung you've already exposed. Either draws a replacement.
+- A winning hand is four sets and a pair, or **seven pairs**, or **thirteen
+  orphans**. It must be worth at least the minimum faan (3 by default) to be
+  declared at all.
+- **Faan**: all one suit 7 · all honours 10 · thirteen orphans 13 · seven pairs
+  4 · mixed one suit 3 · all pungs 3 · all chows 1 · each dragon pung 1 · seat
+  wind pung 1 · prevailing wind pung 1 · fully concealed 1 · self-draw 1 · each
+  flower 1. Faan converts to points on the Hong Kong table (3 faan = 8, 4 = 16,
+  … 13 = 384), or straight across as points if you prefer.
+- **Paying**: on a self-draw all three losers pay the hand's value each. On a
+  discard the winner collects the same total, and the house rule decides
+  whether the discarder carries it alone or the three split it.
+- The dealer keeps the deal after winning or after a washed-out hand;
+  otherwise it passes left, and a full circuit moves the prevailing wind on.
+- Highest running total wins.
+
+Not included, deliberately: robbing the kong, last-tile bonuses, and the rare
+limit hands (nine gates, heavenly hand, the great dragons and so on).
+
+Tiles are drawn as a number over its suit mark (5 萬) rather than from the
+Unicode mahjong block, because several of those code points default to emoji
+presentation and a hand ends up a mix of flat glyphs and big coloured images
+depending on the platform. Each tile's Unicode glyph is in its tooltip.
 
 ## Development
 

@@ -37,7 +37,7 @@ export const MODES = {
     minPlayers: 4,
     maxPlayers: 4,
     lowWins: false,
-    playable: false,
+    playable: true,
     engine: () => import('./mahjong/engine.js'),
     view: () => import('./mahjong/view.js'),
     tests: () => import('./mahjong/tests.js'),

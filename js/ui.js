@@ -194,9 +194,13 @@ function renderLobby() {
   $('btn-start').hidden = !isHost;
   $('btn-start').disabled = n < m.minPlayers;
   $('btn-start').textContent = view.roundNumber > 0 ? 'Deal next round' : 'Start game';
+  // Mahjong needs exactly four, so don't render that as a range.
+  const seats = m.minPlayers === m.maxPlayers
+    ? `needs ${m.minPlayers}`
+    : `${m.minPlayers}–${m.maxPlayers} can play`;
   $('lobby-status').textContent = isHost
     ? (n < m.minPlayers
-      ? `Waiting for players to join… (${m.minPlayers}–${m.maxPlayers} can play)`
+      ? `Waiting for players to join… (${seats}, ${n} so far)`
       : `${n} player${n > 1 ? 's' : ''} in — start when ready`)
     : 'Waiting for the host to start…';
 }
@@ -298,7 +302,10 @@ function renderRoundEnd() {
     : Math.max(...scores.map((r) => r.score));
   const winners = scores.filter((r) => r.score === bestRound);
   const bannerEl = $('roundend-winner');
-  if (!scores.length) {
+  // Nobody scored: a washed-out mahjong hand or a dead gin deal. There's no
+  // winner to announce, and calling it a tie reads as a joke.
+  const nothingWon = scores.length > 0 && scores.every((r) => r.score === 0);
+  if (!scores.length || nothingWon) {
     bannerEl.textContent = '';
   } else if (winners.length === 1) {
     const w = winners[0];
