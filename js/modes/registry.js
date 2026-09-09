@@ -25,7 +25,7 @@ export const MODES = {
     minPlayers: 2,
     maxPlayers: 8,
     lowWins: false,
-    playable: false, // engine still to come; hidden from the menu picker
+    playable: true,
     engine: () => import('./gin/engine.js'),
     view: () => import('./gin/view.js'),
     tests: () => import('./gin/tests.js'),

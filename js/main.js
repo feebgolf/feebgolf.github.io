@@ -331,8 +331,11 @@ if (devParams.get('dev')) (async () => {
   const m = mode();
   app.state = app.engine.createState();
   app.state.roomCode = 'DEV1';
-  const names = ['You', 'Ana', 'Ben', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus']
-    .slice(0, Math.max(m.minPlayers, Math.min(3, m.maxPlayers)));
+  // Default to a small table; &seats=N fills it up to the mode's maximum,
+  // which is how an 8-handed gin game gets played without 8 browser windows.
+  const asked = Number(devParams.get('seats')) || Math.min(3, m.maxPlayers);
+  const seats = Math.max(m.minPlayers, Math.min(asked, m.maxPlayers));
+  const names = ['You', 'Ana', 'Ben', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus'].slice(0, seats);
   for (let i = 0; i < names.length; i++) app.engine.addPlayer(app.state, 'd' + i, null, names[i]);
   app.state.hostSeat = 'd0';
   app.mySeat = 'd0';

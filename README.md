@@ -8,7 +8,7 @@ public broker).
 | game | players | status |
 |---|---|---|
 | **Golf** (six-card) | 2–4 | playable |
-| **Gin Rummy** (multi-deck, knocker vs. everyone) | 2–8 | in progress |
+| **Gin Rummy** (multi-deck, knocker vs. everyone) | 2–8 | playable |
 | **Mahjong** (Hong Kong) | 4 | in progress |
 
 The host picks the game when they create the room; joiners get whatever the
@@ -44,6 +44,35 @@ host is running. Games in progress are registered but not offered in the menu.
 Two of these are lobby toggles: whether a matching column cancels, and whether
 last round's loser opens the next one.
 
+### Gin rummy house rules
+
+This is the group version, not two-handed gin: **everyone plays against the
+knocker at once**, and the deck count grows with the table.
+
+- Decks scale so the stock is always worth drawing from — 2–3 players use one
+  deck (2 players is exactly the classic 52-card game), 4–7 use two, 8 use
+  three.
+- Everyone gets 10 cards; one card is turned up to start the discard.
+- On your turn, **draw** from the stock or **take** the discard, then throw one
+  card away. You can't throw back the card you just took from the discard.
+- **Melds** are three or more of a rank, or three or more in sequence in one
+  suit (aces are low and runs don't wrap). Everything unmelded is *deadwood*:
+  A = 1, face cards = 10, the rest at face value.
+- **Knock** when the throw would leave you with 10 deadwood or less. Zero
+  deadwood is **gin**.
+- Then every opponent lays off what they can onto your melds — automatically,
+  and never against gin — and pays you the difference between their deadwood
+  and yours. If anyone *matches or beats* you, they **undercut**: they collect
+  the difference plus 25 instead, and you get nothing from them.
+- Gin pays a 25 bonus from each opponent. Running the stock out with nobody
+  knocking is a dead hand: nobody scores.
+- Highest running total wins. The knock limit, both bonuses, whether layoffs
+  are allowed, and whether identical cards (from different decks) can form a
+  set are all lobby toggles.
+
+Your hand shows its melds tinted and a live deadwood count, so you can see
+where you stand without doing the arithmetic.
+
 ## Development
 
 ```sh
@@ -54,8 +83,9 @@ python3 -m http.server 8000
   play yourself. `file://` won't work; ES modules need a real origin.
 - **Dev mode:** http://localhost:8000/?dev=1 — a local hot-seat game with a
   "play as" switcher and no networking. Good for UI work. Add `&mode=gin` to
-  hot-seat another game; the table is seated to that game's player count, which
-  is how an 8-player hand gets tested without eight browser windows.
+  hot-seat another game, and `&seats=8` to fill the table up to that game's
+  maximum — which is how an 8-player gin hand gets tested without eight
+  browser windows.
 - Engine tests: http://localhost:8000/test.html (same tests as
   `node js/run-tests.mjs`). Both take a mode filter — `?mode=golf` and
   `node js/run-tests.mjs golf`.

@@ -545,3 +545,57 @@ input[type="text"]:focus { border-color: var(--gold); }
   .active-player { animation: none; }
   .overlay, .overlay-box, .re-ribbon, .card.flipping { animation: none; }
 }
+
+/* ===== gin rummy table ===== */
+#table-root.gin { --card-w: clamp(46px, 9.5vw, 68px); }
+#gin-opponents {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center; padding: 10px 8px 0;
+}
+.gin-opp {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 11px; border-radius: 999px;
+  background: rgba(0, 0, 0, .22);
+  border: 1px solid rgba(255, 255, 255, .14);
+  font-size: .82rem; white-space: nowrap;
+}
+.gin-opp-name { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; }
+.gin-opp-cards { opacity: .8; font-variant-numeric: tabular-nums; }
+.gin-opp .pts {
+  opacity: .9; font-weight: 700; font-family: ui-monospace, Menlo, monospace;
+}
+.gin-tag {
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--gold);
+}
+
+/* The hand overlaps into a fan when there are more cards than room. */
+.gin-hand {
+  display: flex; justify-content: center; align-items: flex-end;
+  padding: 0 8px; min-height: calc(var(--card-w) * 1.42);
+}
+.gin-hand .card { flex: 0 0 auto; margin-right: calc(var(--card-w) * -0.22); }
+.gin-hand .card:last-child { margin-right: 0; }
+.gin-hand .card.clickable:hover { transform: translateY(-9px); z-index: 6; }
+/* Melded cards are tinted in alternating colours so groups read apart. */
+.gin-hand .card.melded .card-face { box-shadow: inset 0 0 0 2px currentColor; }
+.gin-hand .card.meld-a .card-face { color: #6fdd8b; }
+.gin-hand .card.meld-b .card-face { color: #7cc4ff; }
+.gin-hand .card.meld-c .card-face { color: #f0a6ff; }
+.gin-hand .card.just-taken .card-face { outline: 2px dashed var(--gold); outline-offset: -3px; }
+
+#gin-meldinfo {
+  font-size: .78rem; opacity: .8; letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+#gin-actions { display: flex; gap: 8px; justify-content: center; }
+#btn-gin-knock.armed { background: var(--gold); border-color: var(--gold); color: #40300a; }
+
+/* --- gin round-end breakdown --- */
+.gin-re { min-width: min(320px, 84vw); }
+.gin-melds { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+.gin-cardrow { display: flex; gap: 3px; --card-w: 34px; }
+.gin-cardrow .card { width: var(--card-w); }
+.gin-cardrow.gin-meld .card-face { box-shadow: inset 0 0 0 2px #6fdd8b; }
+.gin-cardrow.gin-laidoff .card-face { box-shadow: inset 0 0 0 2px #7cc4ff; }
+.gin-cardrow.gin-dead { opacity: .62; }
