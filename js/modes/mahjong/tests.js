@@ -89,6 +89,16 @@ export function runTests() {
     }
     eq(glyphs.size, 42);
   });
+  test('every tile has a distinct drawn face', () => {
+    // The faces are what a player actually reads, so two tiles sharing one
+    // would be unplayable. Initials for the bonus tiles used to collide here.
+    const faces = new Set();
+    for (let t = 0; t <= 41; t++) {
+      const f = tileFace(t);
+      faces.add(f.top + '/' + f.bottom);
+    }
+    eq(faces.size, 42);
+  });
 
   // ---- win detection ----
   test('four sets and a pair is a win', () =>

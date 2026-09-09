@@ -560,7 +560,13 @@ input[type="text"]:focus { border-color: var(--gold); }
   font-size: .82rem; white-space: nowrap;
 }
 .gin-opp-name { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; }
-.gin-opp-cards { opacity: .8; font-variant-numeric: tabular-nums; }
+.gin-opp-cards { display: inline-flex; align-items: center; gap: 4px; opacity: .85; font-variant-numeric: tabular-nums; }
+/* A drawn card/tile back, so no glyph coverage is needed. */
+.gin-back-icon {
+  width: 9px; height: 13px; border-radius: 2px;
+  background: linear-gradient(#3b6ea8, #27507c);
+  border: 1px solid rgba(255, 255, 255, .35);
+}
 .gin-opp .pts {
   opacity: .9; font-weight: 700; font-family: ui-monospace, Menlo, monospace;
 }
@@ -660,7 +666,12 @@ input[type="text"]:focus { border-color: var(--gold); }
 }
 .mj-opp-head { display: flex; align-items: center; gap: 6px; font-size: .8rem; }
 .mj-opp-name { max-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mj-opp-cards { opacity: .75; font-variant-numeric: tabular-nums; }
+.mj-opp-cards { display: inline-flex; align-items: center; gap: 4px; opacity: .8; font-variant-numeric: tabular-nums; }
+.mj-back-icon {
+  width: 9px; height: 13px; border-radius: 2px;
+  background: linear-gradient(#1f5d3a, #17442b);
+  border: 1px solid rgba(255, 255, 255, .3);
+}
 .mj-opp .pts { font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
 .mj-answered { color: #6fdd8b; }
 .mj-wind-tag {

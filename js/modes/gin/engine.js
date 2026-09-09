@@ -335,7 +335,9 @@ export function redact(state, viewerSeatId) {
     // Whether the player to act still owes a discard, so everyone can see the
     // turn is mid-flight without seeing what was drawn.
     holding: !!(cur && cur.hand.length > HAND_SIZE),
-    myHand: me ? me.hand : [],
+    // A copy, not the live hand: a view is a snapshot, and ui.js keeps the
+    // previous one to diff against.
+    myHand: me ? [...me.hand] : [],
     myTookId: me ? me.tookId : null,
     players: state.players.map((p) => ({
       seatId: p.seatId,

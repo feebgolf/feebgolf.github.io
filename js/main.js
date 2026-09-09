@@ -20,6 +20,7 @@ const app = {
   connToSeat: new Map(),
   seatToConn: new Map(),
   timer: null,         // pending engine deadline (mahjong's claim window)
+  modeGen: 0,          // bumped per mode load, so a stale import can't land
 };
 
 // The registry entry for the game in progress (falls back before one is chosen).
@@ -30,10 +31,15 @@ const mode = () => modeOf(app.modeId);
 // the view. Idempotent: the module cache makes re-entry instant.
 async function activateMode(id, { needEngine }) {
   const m = modeOf(id);
+  const gen = ++app.modeGen;
   const [view, engine] = await Promise.all([
     m.view(),
     needEngine ? m.engine() : null,
   ]);
+  // Leaving the room, or joining a different one, while the import was in
+  // flight makes this load stale — mounting it now would leave a renderer for
+  // a game we're no longer in.
+  if (gen !== app.modeGen) return;
   app.modeId = m.id;
   app.engine = engine;
   ui.useMode(m.id, view);
@@ -144,10 +150,14 @@ function scheduleEngineTimer() {
   if (!app.state || !app.engine?.pendingTimer) return;
   const t = app.engine.pendingTimer(app.state);
   if (!t) return;
-  app.timer = setTimeout(
-    () => handleAction(app.state.hostSeat, t.act),
-    Math.max(0, t.at - Date.now()) + 40, // a beat past the deadline
-  );
+  app.timer = setTimeout(() => {
+    app.timer = null;
+    // Ask again rather than firing t.act blindly: a claim answered in the
+    // meantime already closed the window, and the stale action would be
+    // rejected — toasting "Unknown action" at the host mid-hand.
+    const still = app.engine?.pendingTimer?.(app.state);
+    if (still) handleAction(app.state.hostSeat, still.act);
+  }, Math.max(0, t.at - Date.now()) + 40); // a beat past the deadline
 }
 
 function bind(conn, seatId) {
@@ -307,6 +317,7 @@ function resetToMenu(errorMsg = null) {
   app.mySeat = null;
   app.modeId = null;
   app.engine = null;
+  app.modeGen++;
   app.state = null;
   app.view = null;
   clearTimeout(app.timer);

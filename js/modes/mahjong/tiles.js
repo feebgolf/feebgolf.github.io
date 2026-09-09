@@ -26,11 +26,9 @@ export const isBonus = (t) => t >= BONUS_FIRST && t <= BONUS_LAST;
 export const suitOf = (t) => (isSuited(t) ? Math.floor(t / 9) : -1);
 // 1–9 for suited tiles, 0 for honours.
 export const numOf = (t) => (isSuited(t) ? (t % 9) + 1 : 0);
-export const windOf = (t) => (isWind(t) ? t - 27 : -1);
 export const tileOfWind = (w) => 27 + w;
 
 export const isTerminal = (t) => isSuited(t) && (numOf(t) === 1 || numOf(t) === 9);
-export const isTerminalOrHonor = (t) => isTerminal(t) || isHonor(t);
 // A chow can start here only if the next two tiles are in the same suit.
 export const canStartChow = (t) => isSuited(t) && numOf(t) <= 7;
 
@@ -65,8 +63,11 @@ export function tileName(t) {
 // Short label for a tile face: "5" over a suit mark, or a single honour mark.
 export const HONOR_MARKS = ['東', '南', '西', '北', '中', '發', '白'];
 export const SUIT_MARKS = ['萬', '條', '筒'];
+// The marks a real set carries. Initials won't do: Spring and Summer would
+// both come out "S", so two different tiles would wear the same face.
+export const BONUS_MARKS = ['梅', '蘭', '竹', '菊', '春', '夏', '秋', '冬'];
 export function tileFace(t) {
-  if (isBonus(t)) return { top: BONUS_NAMES[t - BONUS_FIRST][0], bottom: '花' };
+  if (isBonus(t)) return { top: BONUS_MARKS[t - BONUS_FIRST], bottom: '' };
   if (isHonor(t)) return { top: HONOR_MARKS[t - 27], bottom: '' };
   return { top: String(numOf(t)), bottom: SUIT_MARKS[suitOf(t)] };
 }

@@ -43,10 +43,12 @@ export function mount(root, handlers) {
     H.dispatch({ a: 'discard', tile: Number(cell.dataset.t) });
   });
 
-  // A claim window counts down, so repaint while one is open. Cheap, and it
-  // stops the moment the window closes.
+  // A claim window counts down. Only the seconds are retimed here — a full
+  // repaint would rebuild the claim buttons four times a second, and a tap
+  // that straddled a rebuild would be swallowed, because the button the
+  // press started on no longer exists to receive the release.
   ticker = setInterval(() => {
-    if (view && view.phase === 'claim') H.repaint();
+    if (view && view.phase === 'claim') tickClaimClock();
   }, 250);
 }
 
@@ -175,7 +177,13 @@ export function renderTable(ctx) {
     name.textContent = p.name;
     const cnt = document.createElement('span');
     cnt.className = 'mj-opp-cards';
-    cnt.textContent = `🀫${p.handCount}`;
+    // A drawn back rather than U+1F02B: that glyph is missing from plenty of
+    // system fonts and shows as a blank box.
+    const backIcon = document.createElement('span');
+    backIcon.className = 'mj-back-icon';
+    backIcon.setAttribute('aria-hidden', 'true');
+    cnt.append(backIcon, document.createTextNode(String(p.handCount)));
+    cnt.title = `${p.handCount} tiles in hand`;
     const pts = document.createElement('span');
     pts.className = 'pts';
     pts.textContent = p.total;
@@ -272,12 +280,32 @@ function secondsLeft() {
   return Math.ceil(Math.max(0, Math.min(view.claimDeadline - Date.now(), span)) / 1000);
 }
 
+// Retime the open window without touching the buttons.
+function tickClaimClock() {
+  const label = $('mj-claims')?.querySelector('.mj-claim-label');
+  if (label && view.lastDiscard) {
+    label.textContent = `${tileName(view.lastDiscard.tile)} — ${secondsLeft()}s`;
+  }
+  const bar = $('status-bar');
+  if (bar) bar.textContent = statusText(view.players[view.turnIndex]);
+}
+
 function renderClaims() {
   const box = $('mj-claims');
-  if (!claimIsMine()) { box.hidden = true; box.replaceChildren(); return; }
+  if (!claimIsMine()) {
+    box.hidden = true;
+    box.replaceChildren();
+    box.dataset.builtFor = '';
+    return;
+  }
   box.hidden = false;
   const o = view.myClaimOptions;
   const tile = view.lastDiscard.tile;
+  // Same tile and same options means the same buttons; leave them alone and
+  // just retime the label.
+  const builtFor = JSON.stringify([tile, o.pung, o.kong, o.chows, o.mahjong, o.faan]);
+  if (box.dataset.builtFor === builtFor) { tickClaimClock(); return; }
+  box.dataset.builtFor = builtFor;
   const kids = [];
 
   const label = document.createElement('span');

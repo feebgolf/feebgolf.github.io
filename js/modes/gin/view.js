@@ -185,7 +185,12 @@ export function renderTable(ctx) {
     name.textContent = p.name;
     const cards = document.createElement('span');
     cards.className = 'gin-opp-cards';
-    cards.textContent = `🂠 ${p.handCount}`;
+    // A drawn card back rather than U+1F0A0, which many system fonts lack.
+    const backIcon = document.createElement('span');
+    backIcon.className = 'gin-back-icon';
+    backIcon.setAttribute('aria-hidden', 'true');
+    cards.append(backIcon, document.createTextNode(String(p.handCount)));
+    cards.title = `${p.handCount} cards in hand`;
     const pts = document.createElement('span');
     pts.className = 'pts';
     pts.textContent = p.total;

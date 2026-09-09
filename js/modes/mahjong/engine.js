@@ -6,7 +6,7 @@ import {
   KINDS, buildWall, sortTiles, countsOf, isBonus, tileName, glyph,
   tileOfWind, WIND_NAMES,
 } from './tiles.js';
-import { isWin, waits, chowOptions } from './hand.js';
+import { isWin, chowOptions } from './hand.js';
 import { scoreHand, pointsFor } from './score.js';
 import { shuffle } from '../../cards.js';
 
@@ -450,14 +450,16 @@ export function applyAction(state, seatId, act) {
 
 // ===== end of hand =====
 
+const copyMelds = (melds) => melds.map((m) => ({ ...m, tiles: [...m.tiles] }));
+
 function revealRows(state, extra = {}) {
   return state.players.map((p) => ({
     seatId: p.seatId,
     name: p.name,
     wind: p.wind,
     hand: sortTiles(p.hand),
-    melds: p.melds,
-    flowers: p.flowers,
+    melds: copyMelds(p.melds),
+    flowers: [...p.flowers],
     score: 0,
     ...(extra[p.seatId] || {}),
   }));
@@ -607,8 +609,7 @@ export function redact(state, viewerSeatId) {
     myHand: me ? sortTiles(me.hand) : [],
     myJustDrew: me && state.players[state.turnIndex]?.seatId === viewerSeatId
       ? state.justDrew : null,
-    // Offered only to the player holding, so the button can appear when legal.
-    myWaits: me && !holding(me) ? waits(me.hand, me.melds.length, state.settings) : [],
+    // Gates the "Mahjong" button, so it only appears when the claim is legal.
     myCanWin: !!(me && holding(me) && isWin(me.hand, me.melds.length, state.settings)),
     players: state.players.map((p) => ({
       seatId: p.seatId,
@@ -617,9 +618,11 @@ export function redact(state, viewerSeatId) {
       total: p.total,
       wind: p.wind,
       handCount: p.hand.length,
-      melds: p.melds,
-      flowers: p.flowers,
-      discards: p.discards,
+      // Copies, not the live arrays: a view is a snapshot, and ui.js keeps the
+      // previous one to diff against.
+      melds: copyMelds(p.melds),
+      flowers: [...p.flowers],
+      discards: [...p.discards],
       holding: holding(p),
     })),
   };

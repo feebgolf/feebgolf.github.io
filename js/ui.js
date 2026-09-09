@@ -149,6 +149,7 @@ export function showScreen(name) {
   }
   if (name === 'menu') {
     view = prev = null;
+    settingsBuiltFor = null;
     fx.settle();
     clearTimeout(overlayTimer);
     overlayTimer = null;
@@ -208,10 +209,18 @@ function renderLobby() {
 // The lobby's house-rules panel, driven entirely by the mode's SETTINGS
 // schema — no mode ever writes settings UI of its own. Guests see it read-only
 // so they know the rules before committing to a seat.
+let settingsBuiltFor = null;
+
 function renderSettings(schema, values, editable) {
   const box = $('lobby-settings');
   box.hidden = !schema.length;
-  if (!schema.length) return;
+  if (!schema.length) { settingsBuiltFor = null; return; }
+  // renderLobby runs on every broadcast, and rebuilding these inputs would
+  // throw away whatever the host is halfway through typing — along with the
+  // focus — every time another player joins. Only rebuild on a real change.
+  const key = JSON.stringify([schema.map((f) => f.key), values, editable]);
+  if (settingsBuiltFor === key) return;
+  settingsBuiltFor = key;
   const rows = [];
   const title = document.createElement('div');
   title.className = 'settings-title';
