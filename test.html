@@ -16,7 +16,9 @@
   <script type="module">
     import { runTests } from './js/tests.js';
     const out = document.getElementById('out');
-    const results = runTests();
+    // ?mode=golf runs just that mode's suite.
+    const only = new URLSearchParams(location.search).get('mode');
+    const results = await runTests(only);
     const failed = results.filter((r) => !r.pass).length;
     out.innerHTML = results.map((r) => r.pass
       ? `<div class="pass">ok &nbsp; ${r.name}</div>`
