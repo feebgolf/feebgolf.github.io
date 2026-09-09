@@ -1,18 +1,30 @@
-# Golf 🃏 — feebgolf.github.io
+# feebgolf 🃏 — feebgolf.github.io
 
-A static site for playing the six-card card game **Golf** with 2–4 players over
-the internet. No server, no accounts: the site is plain HTML/CSS/JS on GitHub
-Pages, and players connect directly to each other with WebRTC
-([PeerJS](https://peerjs.com), free public broker).
+A static site for playing card games with your people over the internet. No
+server, no accounts: the site is plain HTML/CSS/JS on GitHub Pages, and players
+connect directly to each other with WebRTC ([PeerJS](https://peerjs.com), free
+public broker).
+
+| game | players | status |
+|---|---|---|
+| **Golf** (six-card) | 2–4 | playable |
+| **Gin Rummy** (multi-deck, knocker vs. everyone) | 2–8 | in progress |
+| **Mahjong** (Hong Kong) | 4 | in progress |
+
+The host picks the game when they create the room; joiners get whatever the
+host is running. Games in progress are registered but not offered in the menu.
 
 ## How to play
 
-- **Create game** → you get a 4-letter room code (and a copyable invite link).
-- Friends **Join** with the code. The host starts the game with 2–4 players.
+- **Create game** → pick a game, and you get a 4-letter room code (and a
+  copyable invite link).
+- Friends **Join** with the code. The host starts once enough players are in.
+- The lobby shows the **house rules** for that game. The host can change them
+  before the deal; everyone else sees them read-only.
 - The host's browser runs the game; if the host closes their tab, the game ends.
   A player who accidentally refreshes can rejoin with the same name.
 
-### House rules
+### Golf house rules
 
 - Everyone gets 6 face-down cards in a 2×3 grid; one card starts the discard.
 - Before play, everyone flips 2 of their own cards. A random player goes first
@@ -29,6 +41,9 @@ Pages, and players connect directly to each other with WebRTC
   scoreboard keeps a running total.
 - If the deck runs out, the discard pile (minus its top card) is reshuffled.
 
+Two of these are lobby toggles: whether a matching column cancels, and whether
+last round's loser opens the next one.
+
 ## Development
 
 ```sh
@@ -37,19 +52,32 @@ python3 -m http.server 8000
 
 - Game: http://localhost:8000 — open two tabs (one normal, one incognito) to
   play yourself. `file://` won't work; ES modules need a real origin.
-- **Dev mode:** http://localhost:8000/?dev=1 — a local 3-player hot-seat game
-  with a "play as" switcher and no networking. Good for UI work.
+- **Dev mode:** http://localhost:8000/?dev=1 — a local hot-seat game with a
+  "play as" switcher and no networking. Good for UI work. Add `&mode=gin` to
+  hot-seat another game; the table is seated to that game's player count, which
+  is how an 8-player hand gets tested without eight browser windows.
 - Engine tests: http://localhost:8000/test.html (same tests as
-  `node js/run-tests.mjs`).
+  `node js/run-tests.mjs`). Both take a mode filter — `?mode=golf` and
+  `node js/run-tests.mjs golf`.
 
 ### Code layout
 
 | file | role |
 |---|---|
-| `js/game.js` | pure rules engine — no DOM, no network |
-| `js/net.js` | PeerJS transport — no DOM, no rules |
-| `js/ui.js` | view → DOM rendering + input — no network, no rules |
 | `js/main.js` | coordinator; the host runs the authoritative game state |
+| `js/net.js` | PeerJS transport — no DOM, no rules |
+| `js/ui.js` | the shell: menu, lobby, overlay chrome, toasts — no rules |
+| `js/modes/registry.js` | the catalogue: the only place that knows which games exist |
+| `js/modes/<game>/engine.js` | that game's pure rules — no DOM, no network |
+| `js/modes/<game>/view.js` | that game's table: DOM + input, no rules |
+| `js/cards.js` `js/cardui.js` `js/fx.js` | shared deck, card DOM, card-flight animations |
+| `js/settings.js` | house-rule schemas: defaults and validation |
+| `js/modes/contract-tests.js` | the interface every engine must satisfy |
+
+Adding a game means writing an engine, a view and a test file under
+`js/modes/<game>/`, then one entry in the registry. The engine is DOM-free so
+`node js/run-tests.mjs` can run it; the view is the only half a guest
+downloads, because guests never hold an engine.
 
 The host sends each player a **redacted** view: face-down card values never
 leave the host's tab, so guests can't cheat via devtools. (The host machine
@@ -63,6 +91,12 @@ casino.)
   *different* mobile-carrier networks). Home wifi is fine. If it ever matters,
   add TURN `iceServers` to the `new Peer(...)` config in `js/net.js`.
 - The game lives in the host's tab: host closes tab ⇒ game over.
+- Bumping `?v=` on the `index.html` script tag busts `main.js` but **not the
+  modules it imports**, so right after a deploy a browser can pair new
+  `main.js` with a cached `ui.js`. Pages sets the same ~10 min max-age on
+  everything, so it clears itself; a hard reload fixes it immediately. Worth
+  fixing properly (an import map listing every module against one version) if
+  it ever bites mid-game.
 
 ## Deploying
 

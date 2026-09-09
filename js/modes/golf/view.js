@@ -317,9 +317,12 @@ export function renderRoundEnd(ctx, body) {
     box.appendChild(name);
     const grid = document.createElement('div');
     grid.className = 'grid';
+    // Only mark cancelling columns when the house is actually playing that rule.
     const cancelled = new Set();
-    for (let c = 0; c < 3; c++) {
-      if (p.hand[c]?.rank && p.hand[c].rank === p.hand[c + 3]?.rank) cancelled.add(c);
+    if (view.settings?.pairsCancel !== false) {
+      for (let c = 0; c < 3; c++) {
+        if (p.hand[c]?.rank && p.hand[c].rank === p.hand[c + 3]?.rank) cancelled.add(c);
+      }
     }
     p.hand.forEach((card, i) => {
       const el = cardEl(card);

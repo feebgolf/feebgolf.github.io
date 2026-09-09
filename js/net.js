@@ -3,7 +3,7 @@
 // knowing only the 4-character room code. Guest: connects to that ID.
 /* global Peer */
 
-export const PROTOCOL_V = 1;
+export const PROTOCOL_V = 2;
 const PREFIX = 'feebgolf-';
 // Unambiguous charset — no 0/O, 1/I/L.
 const CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';

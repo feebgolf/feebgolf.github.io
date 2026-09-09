@@ -2,7 +2,7 @@
 // chrome, toasts and banners. No network, no rules, and no knowledge of any
 // particular game — the table itself is painted by the active mode's view
 // module, which ui.js mounts into #table-root.
-import { modeOf } from './modes/registry.js';
+import { modeOf, playableModes, DEFAULT_MODE } from './modes/registry.js';
 import { newStagger } from './cardui.js';
 import * as fx from './fx.js';
 
@@ -19,6 +19,7 @@ let overlayTimer = null;
 let overlayShownFor = -1; // roundNumber the overlay has been revealed for
 const OVERLAY_DELAY_MS = 1600;
 let staggerOn = false;   // round-end mass reveal: cascade the flips
+let pickedMode = DEFAULT_MODE; // which game the Create button will host
 
 export function init(handlers) {
   H = handlers;
@@ -35,10 +36,12 @@ export function init(handlers) {
     return name;
   };
 
+  renderModePicker();
+
   $('btn-create').addEventListener('click', () => {
     const name = savedName();
     if (!name) return menuError('Enter a name first');
-    H.createGame(name);
+    H.createGame(name, pickedMode);
   });
   const join = () => {
     const name = savedName();
@@ -56,6 +59,38 @@ export function init(handlers) {
   $('btn-copy').addEventListener('click', copyInvite);
   $('btn-next-round').addEventListener('click', () => H.nextRound());
   $('btn-to-lobby').addEventListener('click', () => H.toLobby());
+}
+
+// The Create half of the menu picks the game; joining takes whatever the host
+// is running, so the picker deliberately says "Game to host".
+function renderModePicker() {
+  const modes = playableModes();
+  const saved = localStorage.getItem('feebgolf-mode');
+  if (modes.some((m) => m.id === saved)) pickedMode = saved;
+  const box = $('mode-picker');
+  const drawPicker = () => {
+    box.replaceChildren(...modes.map((m) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mode-opt' + (m.id === pickedMode ? ' on' : '');
+      const label = document.createElement('span');
+      label.className = 'mode-label';
+      label.textContent = m.label;
+      const blurb = document.createElement('span');
+      blurb.className = 'mode-blurb';
+      blurb.textContent = m.blurb;
+      b.append(label, blurb);
+      b.addEventListener('click', () => {
+        pickedMode = m.id;
+        localStorage.setItem('feebgolf-mode', m.id);
+        drawPicker();
+      });
+      return b;
+    }));
+    // With one game there is nothing to choose; don't imply otherwise.
+    box.parentElement.hidden = modes.length < 2;
+  };
+  drawPicker();
 }
 
 // Swap in a mode's table renderer. useMode(null) just tears the old one down,
@@ -97,6 +132,7 @@ export function render(v, seat) {
 }
 
 function paint() {
+  document.title = `${modeOf(view.mode).label} 🃏 feebgolf`;
   if (view.phase === 'lobby') {
     renderLobby();
     showScreen('lobby');
@@ -154,6 +190,7 @@ function renderLobby() {
   }));
   const isHost = mySeat === view.hostSeat;
   const n = view.players.length;
+  renderSettings(view.settingsSchema || [], view.settings || {}, isHost);
   $('btn-start').hidden = !isHost;
   $('btn-start').disabled = n < m.minPlayers;
   $('btn-start').textContent = view.roundNumber > 0 ? 'Deal next round' : 'Start game';
@@ -162,6 +199,57 @@ function renderLobby() {
       ? `Waiting for players to join… (${m.minPlayers}–${m.maxPlayers} can play)`
       : `${n} player${n > 1 ? 's' : ''} in — start when ready`)
     : 'Waiting for the host to start…';
+}
+
+// The lobby's house-rules panel, driven entirely by the mode's SETTINGS
+// schema — no mode ever writes settings UI of its own. Guests see it read-only
+// so they know the rules before committing to a seat.
+function renderSettings(schema, values, editable) {
+  const box = $('lobby-settings');
+  box.hidden = !schema.length;
+  if (!schema.length) return;
+  const rows = [];
+  const title = document.createElement('div');
+  title.className = 'settings-title';
+  title.textContent = 'house rules';
+  rows.push(title);
+  for (const f of schema) {
+    const row = document.createElement('label');
+    row.className = 'settings-row';
+    const text = document.createElement('span');
+    text.className = 'settings-label';
+    text.textContent = f.label;
+    if (f.help) text.title = f.help;
+    let input;
+    if (f.type === 'bool') {
+      input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!values[f.key];
+      input.addEventListener('change', () => H.setSetting(f.key, input.checked));
+    } else if (f.type === 'int') {
+      input = document.createElement('input');
+      input.type = 'number';
+      input.className = 'settings-num';
+      input.value = values[f.key];
+      if (f.min !== undefined) input.min = f.min;
+      if (f.max !== undefined) input.max = f.max;
+      input.addEventListener('change', () => H.setSetting(f.key, Number(input.value)));
+    } else {
+      input = document.createElement('select');
+      for (const o of f.options) {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        input.appendChild(opt);
+      }
+      input.value = values[f.key];
+      input.addEventListener('change', () => H.setSetting(f.key, input.value));
+    }
+    input.disabled = !editable;
+    row.append(text, input);
+    rows.push(row);
+  }
+  box.replaceChildren(...rows);
 }
 
 function copyInvite() {

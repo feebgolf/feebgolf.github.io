@@ -2,8 +2,28 @@
 // No DOM, no network. Every function operates on a plain state object.
 
 import { makeDeck, shuffle, cardName } from '../../cards.js';
+import { defaults } from '../../settings.js';
 
 export const MODE_ID = 'golf';
+
+// House rules the host can change in the lobby. The engine already branched at
+// both of these points; the schema just exposes them.
+export const SETTINGS = [
+  {
+    key: 'pairsCancel',
+    type: 'bool',
+    default: true,
+    label: 'Matching column cancels to 0',
+    help: 'Two cards of the same rank in a column score nothing — even two 2s.',
+  },
+  {
+    key: 'loserGoesFirst',
+    type: 'bool',
+    default: true,
+    label: 'Last round’s loser goes first',
+    help: 'Otherwise every round opens with a random player.',
+  },
+];
 
 // Re-exported so callers of the engine (tests, UI) have one import site.
 export { RANKS, SUITS, SUIT_GLYPHS, makeDeck, shuffle, cardName } from '../../cards.js';
@@ -21,12 +41,13 @@ export function cardScore(card) {
 }
 
 // Hand layout: hand[0..5], columns are the pairs (0,3), (1,4), (2,5).
-// A column whose two cards share a rank scores 0 — including a pair of 2s.
-export function handScore(hand) {
+// A column whose two cards share a rank scores 0 — including a pair of 2s —
+// unless the host turned that rule off.
+export function handScore(hand, { pairsCancel = true } = {}) {
   let total = 0;
   for (let c = 0; c < 3; c++) {
     const a = hand[c], b = hand[c + 3];
-    if (a.rank === b.rank) continue;
+    if (pairsCancel && a.rank === b.rank) continue;
     total += cardScore(a) + cardScore(b);
   }
   return total;
@@ -34,11 +55,11 @@ export function handScore(hand) {
 
 // Live score from what's showing: face-down cards count 0, and a column
 // only cancels when BOTH cards are face up with matching ranks.
-export function visibleScore(hand) {
+export function visibleScore(hand, { pairsCancel = true } = {}) {
   let total = 0;
   for (let c = 0; c < 3; c++) {
     const a = hand[c], b = hand[c + 3];
-    if (a.faceUp && b.faceUp && a.rank === b.rank) continue;
+    if (pairsCancel && a.faceUp && b.faceUp && a.rank === b.rank) continue;
     if (a.faceUp) total += cardScore(a);
     if (b.faceUp) total += cardScore(b);
   }
@@ -46,8 +67,9 @@ export function visibleScore(hand) {
 }
 
 // Which columns cancel (for UI highlighting at round end).
-export function cancelledColumns(hand) {
+export function cancelledColumns(hand, { pairsCancel = true } = {}) {
   const cols = [];
+  if (!pairsCancel) return cols;
   for (let c = 0; c < 3; c++) {
     if (hand[c].rank === hand[c + 3].rank) cols.push(c);
   }
@@ -66,6 +88,7 @@ export function createState(rng = Math.random) {
     deck: [],            // last element = top
     discard: [],         // last element = top
     roundScores: null,
+    settings: defaults(SETTINGS),
     log: [],
     lastMove: null,      // { a, seat, i, seq } — lets the UI animate the move
     moveSeq: 0,
@@ -94,7 +117,7 @@ export function startRound(state) {
   // The loser of the previous round goes first (random among tied losers);
   // the first round of a match starts with a random player.
   let firstIndex = null;
-  if (state.roundScores) {
+  if (state.settings.loserGoesFirst && state.roundScores) {
     let worst = -Infinity;
     const losers = [];
     for (const rs of state.roundScores) {
@@ -243,7 +266,7 @@ function endRound(state) {
   state.roundScores = state.players.map((p) => ({
     seatId: p.seatId,
     name: p.name,
-    score: handScore(p.hand),
+    score: handScore(p.hand, state.settings),
   }));
   for (const rs of state.roundScores) {
     state.players.find((q) => q.seatId === rs.seatId).total += rs.score;
@@ -299,6 +322,10 @@ export function redact(state, viewerSeatId) {
     turnIndex: state.turnIndex,
     finisherIndex: state.finisherIndex,
     roundScores: state.roundScores,
+    settings: state.settings,
+    // Guests never load an engine, so the lobby's house-rules panel gets its
+    // schema over the wire. Only in the lobby, where it's the only place shown.
+    ...(state.phase === 'lobby' ? { settingsSchema: SETTINGS } : {}),
     log: state.log.slice(-6),
     deckCount: state.deck.length,
     discardTop: state.discard.length ? state.discard[state.discard.length - 1] : null,
@@ -310,7 +337,7 @@ export function redact(state, viewerSeatId) {
       name: p.name,
       connected: p.connected,
       total: p.total,
-      visibleScore: p.hand.length ? visibleScore(p.hand) : 0,
+      visibleScore: p.hand.length ? visibleScore(p.hand, state.settings) : 0,
       setupFlips: p.setupFlips,
       hand: p.hand.map((c) => (c.faceUp
         ? { rank: c.rank, suit: c.suit, faceUp: true }

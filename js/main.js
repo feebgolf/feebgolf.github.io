@@ -4,6 +4,7 @@
 import * as net from './net.js';
 import * as ui from './ui.js';
 import { DEFAULT_MODE, modeOf } from './modes/registry.js';
+import * as settings from './settings.js';
 
 const V = net.PROTOCOL_V;
 
@@ -73,6 +74,15 @@ function handleAction(seatId, act) {
     broadcast();
     return;
   }
+  // House rules: host only, and only before the cards are dealt.
+  if (act.a === 'setSetting') {
+    if (!isHostSeat || s.phase !== 'lobby') return;
+    const res = settings.coerce(app.engine.SETTINGS, act.key, act.value);
+    if (!res.ok) { ui.toast(res.msg); return; }
+    s.settings[act.key] = res.value;
+    broadcast();
+    return;
+  }
   if (act.a === 'toLobby') {
     if (!isHostSeat) return;
     toLobby();
@@ -139,8 +149,8 @@ function unbind(conn) {
 
 function handleHello(conn, msg) {
   const s = app.state;
-  const reject = (reason) => {
-    app.netH.send(conn, { t: 'reject', v: V, reason });
+  const reject = (reason, msg = null) => {
+    app.netH.send(conn, { t: 'reject', v: V, reason, msg });
     setTimeout(() => { try { conn.close(); } catch { /* fine */ } }, 500);
   };
   if (msg.v !== V) return reject('version');
@@ -154,21 +164,29 @@ function handleHello(conn, msg) {
     ghost.connected = true;
     ghost.peerId = conn.peer;
     bind(conn, ghost.seatId);
-    app.netH.send(conn, { t: 'welcome', v: V, seatId: ghost.seatId, name: ghost.name, roomCode: s.roomCode });
+    app.netH.send(conn, {
+      t: 'welcome', v: V, mode: app.modeId,
+      seatId: ghost.seatId, name: ghost.name, roomCode: s.roomCode,
+    });
     ui.banner(null);
     broadcast();
     return;
   }
 
   const m = mode();
-  if (s.players.length >= m.maxPlayers) return reject('full');
+  if (s.players.length >= m.maxPlayers) {
+    return reject('full', `That ${m.label} room is full (${m.maxPlayers} players max).`);
+  }
   let finalName = name;
   let n = 2;
   while (s.players.some((p) => p.name === finalName)) finalName = `${name} (${n++})`;
   const seatId = newSeat();
   app.engine.addPlayer(s, seatId, conn.peer, finalName);
   bind(conn, seatId);
-  app.netH.send(conn, { t: 'welcome', v: V, seatId, name: finalName, roomCode: s.roomCode });
+  app.netH.send(conn, {
+    t: 'welcome', v: V, mode: app.modeId,
+    seatId, name: finalName, roomCode: s.roomCode,
+  });
   broadcast();
 }
 
@@ -239,14 +257,17 @@ function joinGame(code, name) {
           // Guests learn the game from the host. The import is fire-and-forget:
           // state messages are full snapshots, so activateMode() paints the
           // freshest one if a view lands while the module is still loading.
-          activateMode(DEFAULT_MODE, { needEngine: false });
+          ui.menuStatus(`Loading ${modeOf(msg.mode).label}…`);
+          activateMode(msg.mode, { needEngine: false });
           break;
         case 'reject':
-          resetToMenu(REJECT_TEXT[msg.reason] || 'Could not join that game.');
+          resetToMenu(msg.msg || REJECT_TEXT[msg.reason] || 'Could not join that game.');
           break;
         case 'state':
-          app.view = msg.view;
-          ui.render(app.view, app.mySeat);
+          app.view = msg.view;                       // always keep the freshest
+          // A view from a game whose renderer hasn't loaded yet is dropped;
+          // activateMode() paints app.view as soon as the module lands.
+          if (app.modeId === msg.view.mode) ui.render(app.view, app.mySeat);
           break;
         case 'error':
           ui.toast(msg.msg);
@@ -296,6 +317,7 @@ ui.init({
   joinGame,
   leave,
   startGame: () => dispatch({ a: 'startGame' }),
+  setSetting: (key, value) => dispatch({ a: 'setSetting', key, value }),
   nextRound: () => dispatch({ a: 'nextRound' }),
   toLobby: () => dispatch({ a: 'toLobby' }),
 });

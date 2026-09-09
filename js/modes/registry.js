@@ -13,13 +13,42 @@ export const MODES = {
     minPlayers: 2,
     maxPlayers: 4,
     lowWins: true, // lowest running total wins — drives the shared scoreboard
+    playable: true,
     engine: () => import('./golf/engine.js'),
     view: () => import('./golf/view.js'),
     tests: () => import('./golf/tests.js'),
   },
+  gin: {
+    id: 'gin',
+    label: 'Gin Rummy',
+    blurb: 'knock and lay off · 2–8 players',
+    minPlayers: 2,
+    maxPlayers: 8,
+    lowWins: false,
+    playable: false, // engine still to come; hidden from the menu picker
+    engine: () => import('./gin/engine.js'),
+    view: () => import('./gin/view.js'),
+    tests: () => import('./gin/tests.js'),
+  },
+  mahjong: {
+    id: 'mahjong',
+    label: 'Mahjong',
+    blurb: 'Hong Kong style · 4 players',
+    minPlayers: 4,
+    maxPlayers: 4,
+    lowWins: false,
+    playable: false,
+    engine: () => import('./mahjong/engine.js'),
+    view: () => import('./mahjong/view.js'),
+    tests: () => import('./mahjong/tests.js'),
+  },
 };
 
 export const DEFAULT_MODE = 'golf';
+
+// What the menu offers. A mode is registered (so its engine is contract-tested
+// and its plumbing exercised) before it is playable.
+export const playableModes = () => Object.values(MODES).filter((m) => m.playable);
 
 export const isMode = (id) => Object.prototype.hasOwnProperty.call(MODES, id);
 

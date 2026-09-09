@@ -96,6 +96,51 @@ input[type="text"]:focus { border-color: var(--gold); }
 .btn.small { min-height: 38px; padding: 7px 14px; font-size: .88rem; }
 .btn.ghost { background: transparent; border-color: rgba(255,255,255,.2); opacity: .8; }
 
+/* --- menu: which game to host --- */
+.mode-picker { display: flex; flex-direction: column; gap: 6px; }
+.mode-opt {
+  display: flex; flex-direction: column; gap: 1px;
+  text-align: left; padding: 8px 12px; cursor: pointer;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 10px; color: inherit; font: inherit;
+}
+.mode-opt:hover { background: rgba(255, 255, 255, .13); }
+.mode-opt.on { border-color: var(--gold); background: rgba(245, 200, 76, .16); }
+.mode-opt .mode-label { font-weight: 600; font-size: .95rem; }
+.mode-opt.on .mode-label { color: var(--gold); }
+.mode-opt .mode-blurb { font-size: .74rem; opacity: .7; }
+
+/* --- lobby: house rules, rendered from each mode's SETTINGS schema --- */
+.settings {
+  text-align: left; margin: 0 0 18px;
+  padding: 10px 12px; border-radius: 10px;
+  background: rgba(0, 0, 0, .18); border: 1px solid rgba(255, 255, 255, .1);
+}
+.settings-title {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
+  opacity: .55; margin-bottom: 8px;
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 4px 0; font-size: .85rem;
+}
+.settings-row .settings-label { flex: 1; }
+.settings-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--gold); }
+.settings-row .settings-num {
+  width: 62px; padding: 4px 6px; font: inherit; font-size: .85rem;
+  text-align: center; color: inherit;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .2); border-radius: 7px;
+}
+.settings-row select {
+  font: inherit; font-size: .85rem; color: inherit; padding: 4px 6px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .2); border-radius: 7px;
+}
+/* Guests see the rules but can't change them. */
+.settings-row input:disabled, .settings-row select:disabled { opacity: .55; cursor: default; }
+
 .divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; opacity: .5; font-size: .8rem; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.3); }
 

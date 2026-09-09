@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
-  <title>Golf 🃏 feebgolf</title>
-  <link rel="stylesheet" href="styles.css?v=5">
+  <title>feebgolf 🃏</title>
+  <link rel="stylesheet" href="styles.css?v=6">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
 </head>
 <body>
@@ -13,12 +13,16 @@
   <!-- ===== Menu ===== -->
   <section id="screen-menu" class="screen">
     <div class="menu-box">
-      <h1 class="title">Golf ⛳</h1>
-      <p class="subtitle">the six-card game · 2–4 players</p>
+      <h1 class="title">feebgolf 🃏</h1>
+      <p class="subtitle">play cards with your people</p>
       <label class="field">
         <span>Your name</span>
         <input id="name-input" type="text" maxlength="12" autocomplete="nickname" placeholder="e.g. Feeb">
       </label>
+      <div class="field">
+        <span>Game to host</span>
+        <div id="mode-picker" class="mode-picker"></div>
+      </div>
       <button id="btn-create" class="btn primary">Create game</button>
       <div class="divider"><span>or</span></div>
       <div class="join-row">
@@ -38,6 +42,7 @@
       <p id="lobby-mode" class="muted"></p>
       <button id="btn-copy" class="btn small">Copy invite link</button>
       <ul id="lobby-players" class="player-list"></ul>
+      <div id="lobby-settings" class="settings"></div>
       <button id="btn-start" class="btn primary" hidden>Start game</button>
       <p id="lobby-status" class="muted"></p>
       <button id="btn-leave" class="btn small ghost">Leave</button>
@@ -105,6 +110,6 @@
   <div id="toast" hidden></div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=5"></script>
+  <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

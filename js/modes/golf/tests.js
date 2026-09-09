@@ -7,6 +7,7 @@ import {
 import { makeRng, suite } from '../../testkit.js';
 
 const C = (rank, suit = 's', faceUp = true) => ({ rank, suit, faceUp });
+const D = (rank, suit = 's') => ({ rank, suit, faceUp: false });
 
 function newGame(numPlayers, seed = 42) {
   const state = createState(makeRng(seed));
@@ -74,6 +75,60 @@ export function runTests() {
   test('cancelledColumns reports the right columns', () => {
     const cols = cancelledColumns([C('9', 's'), C('4'), C('5', 's'), C('9', 'h'), C('7'), C('5', 'h')]);
     eq(JSON.stringify(cols), JSON.stringify([0, 2]));
+  });
+
+  // ---- house-rule toggles ----
+  test('pairsCancel off: a matching column scores face value', () => {
+    const hand = [C('9', 's'), C('4'), C('5'), C('9', 'h'), C('7'), C('8')];
+    eq(handScore(hand, { pairsCancel: true }), 24);
+    eq(handScore(hand, { pairsCancel: false }), 42);
+  });
+  test('pairsCancel off: two 2s in a column score -4', () =>
+    eq(handScore([C('2', 's'), C('K'), C('K'), C('2', 'h'), C('K'), C('K')],
+      { pairsCancel: false }), -4));
+  test('pairsCancel off: cancelledColumns reports nothing', () => {
+    const hand = [C('9', 's'), C('4'), C('5'), C('9', 'h'), C('7'), C('8')];
+    eq(cancelledColumns(hand, { pairsCancel: false }).length, 0);
+    eq(cancelledColumns(hand, { pairsCancel: true }).length, 1);
+  });
+  test('pairsCancel off: visibleScore stops cancelling too', () => {
+    const hand = [C('9', 's'), D('4'), D('5'), C('9', 'h'), D('7'), D('8')];
+    eq(visibleScore(hand, { pairsCancel: true }), 0);
+    eq(visibleScore(hand, { pairsCancel: false }), 18);
+  });
+  test('settings default to the house rules and reach the view', () => {
+    const s = newGame(2);
+    eq(s.settings.pairsCancel, true);
+    eq(s.settings.loserGoesFirst, true);
+    eq(redact(s, 's0').settings.pairsCancel, true);
+  });
+  test('loserGoesFirst off: the opener is not forced to be the loser', () => {
+    // With the rule off, startRound ignores roundScores entirely: run it a few
+    // times and the opener must not be pinned to the previous loser's seat.
+    const seen = new Set();
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = newGame(3, seed);
+      s.settings.loserGoesFirst = false;
+      s.roundScores = [
+        { seatId: 's0', score: 3 },
+        { seatId: 's1', score: 40 },
+        { seatId: 's2', score: 8 },
+      ];
+      startRound(s);
+      seen.add(s.turnIndex);
+    }
+    eq(seen.size > 1, true, 'opener varies:');
+  });
+  test('pairsCancel off is honoured when a round is scored', () => {
+    const s = newGame(2, 55);
+    s.settings.pairsCancel = false;
+    finishSetup(s);
+    let guard = 0;
+    while (s.phase === 'play' && guard++ < 200) revealAllTurn(s);
+    for (const p of s.players) {
+      const rs = s.roundScores.find((r) => r.seatId === p.seatId);
+      eq(rs.score, handScore(p.hand, { pairsCancel: false }));
+    }
   });
 
   // ---- deck & dealing ----
@@ -269,7 +324,6 @@ export function runTests() {
     eq(applyAction(s, 's1', { a: 'drawDeck' }).ok, false);
   });
   // ---- visible (live) score ----
-  const D = (rank, suit = 's') => ({ rank, suit, faceUp: false });
   test('visibleScore: all face down = 0', () =>
     eq(visibleScore([D('J'), D('Q'), D('9'), D('10'), D('5'), D('7')]), 0));
   test('visibleScore: face-up cards sum, face-down count 0', () =>

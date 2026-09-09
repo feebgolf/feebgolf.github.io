@@ -5,6 +5,7 @@
 // Deliberately imports only a mode's engine, never its view — engines have to
 // stay DOM-free so `node js/run-tests.mjs` can run them.
 import { makeRng, suite } from '../testkit.js';
+import { defaults, coerce } from '../settings.js';
 
 const REQUIRED_FN = [
   'createState', 'addPlayer', 'startRound', 'applyAction',
@@ -94,6 +95,47 @@ export function runContractTests(m, engine) {
     for (const a of RESERVED) {
       eq(engine.applyAction(s, 's0', { a }).ok, false, `${a} rejected:`);
     }
+  });
+
+  test('SETTINGS schema is well formed and seeded into state', () => {
+    const schema = engine.SETTINGS || [];
+    eq(Array.isArray(schema), true, 'SETTINGS is an array:');
+    for (const f of schema) {
+      eq(typeof f.key, 'string', 'key:');
+      eq(typeof f.label, 'string', `${f.key} label:`);
+      eq(['bool', 'int', 'enum'].includes(f.type), true, `${f.key} type:`);
+      // Every default must survive its own validator, or the lobby would open
+      // on a value the host can't re-select.
+      eq(coerce(schema, f.key, f.default).ok, true, `${f.key} default valid:`);
+    }
+    const s = engine.createState(makeRng());
+    eq(JSON.stringify(s.settings), JSON.stringify(defaults(schema)), 'state.settings seeded:');
+  });
+
+  test('redact exposes settings so guests see the house rules', () => {
+    const v = engine.redact(dealt(m, engine), 's0');
+    eq(typeof v.settings, 'object', 'settings object:');
+    for (const f of engine.SETTINGS || []) {
+      eq(f.key in v.settings, true, `${f.key} present:`);
+    }
+  });
+
+  test('redact ships the settings schema in the lobby, and only there', () => {
+    const lobby = engine.createState(makeRng());
+    for (let i = 0; i < m.minPlayers; i++) engine.addPlayer(lobby, 's' + i, null, 'P' + i);
+    lobby.hostSeat = 's0';
+    const schema = engine.SETTINGS || [];
+    eq(JSON.stringify(engine.redact(lobby, 's0').settingsSchema || []),
+      JSON.stringify(schema), 'schema in lobby:');
+    // Once play starts it would be dead weight on every state message.
+    eq('settingsSchema' in engine.redact(dealt(m, engine), 's0'), false, 'absent in play:');
+  });
+
+  test('resetToLobby keeps the host’s settings', () => {
+    const s = dealt(m, engine);
+    const chosen = JSON.stringify(s.settings);
+    engine.resetToLobby(s);
+    eq(JSON.stringify(s.settings), chosen, 'settings survive:');
   });
 
   test('resetToLobby returns the game to the lobby', () => {
