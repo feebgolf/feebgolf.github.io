@@ -257,6 +257,26 @@ function endRound(state) {
     : `${winners[0]} wins the round (${best})`);
 }
 
+// End the match: back to the lobby with fresh totals. The plumbing owns the
+// player list (it prunes the disconnected); everything cleared here is golf's
+// own private state, which is why it can't live in main.js.
+export function resetToLobby(state) {
+  state.phase = 'lobby';
+  state.roundNumber = 0;
+  state.finisherIndex = null;
+  state.drawn = null;
+  state.deck = [];
+  state.discard = [];
+  state.roundScores = null;
+  state.log = [];
+  state.lastMove = null;
+  for (const p of state.players) {
+    p.total = 0;
+    p.setupFlips = 0;
+    p.hand = [];
+  }
+}
+
 // Running totals, lowest first. Ties share a rank.
 export function finalScores(state) {
   return state.players

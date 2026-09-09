@@ -3,7 +3,7 @@
 import {
   makeDeck, shuffle, cardScore, handScore, cancelledColumns, visibleScore,
   createState, addPlayer, startRound, applyAction, redact, finalScores,
-} from './game.js';
+} from './modes/golf/engine.js';
 
 // Deterministic LCG so tests are reproducible.
 function makeRng(seed = 42) {

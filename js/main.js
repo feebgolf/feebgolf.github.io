@@ -1,15 +1,17 @@
-// main.js — coordinator. Wires ui <-> net <-> game.
+// main.js — coordinator. Wires ui <-> net <-> the active mode's engine.
 // The host plays through the exact same handleAction() path that guest
 // messages hit, so there are no host/guest branches anywhere in the UI.
-import * as game from './game.js';
 import * as net from './net.js';
 import * as ui from './ui.js';
+import { DEFAULT_MODE, modeOf } from './modes/registry.js';
 
 const V = net.PROTOCOL_V;
 
 const app = {
   role: null,          // 'host' | 'guest' | 'dev'
   mySeat: null,
+  modeId: null,        // which game we're playing
+  engine: null,        // that mode's rules — host/dev only; guests never need one
   state: null,         // full state — host/dev only
   view: null,          // last redacted view — the sole render source
   netH: null,
@@ -17,6 +19,27 @@ const app = {
   connToSeat: new Map(),
   seatToConn: new Map(),
 };
+
+// The registry entry for the game in progress (falls back before one is chosen).
+const mode = () => modeOf(app.modeId);
+
+// Load a mode's modules. Guests never need the engine — the host is
+// authoritative and there's no client-side prediction — so they only pay for
+// the view. Idempotent: the module cache makes re-entry instant.
+async function activateMode(id, { needEngine }) {
+  const m = modeOf(id);
+  const [, engine] = await Promise.all([
+    // The per-mode view module arrives with the ui.js split; until then ui.js
+    // still renders golf directly.
+    m.view ? m.view() : null,
+    needEngine ? m.engine() : null,
+  ]);
+  app.modeId = m.id;
+  app.engine = engine;
+  // A view can arrive while the import is still in flight; state messages are
+  // full snapshots, so painting the freshest one here is all the fix needed.
+  if (app.view) ui.render(app.view, app.mySeat);
+}
 
 const newSeat = () => 's' + Math.random().toString(36).slice(2, 8);
 
@@ -33,20 +56,21 @@ function handleAction(seatId, act) {
   const s = app.state;
   if (!s) return;
   const isHostSeat = seatId === s.hostSeat;
+  const m = mode();
 
   // Meta actions (lobby/round control) are host-only.
   if (act.a === 'startGame') {
     if (!isHostSeat || s.phase !== 'lobby') return;
-    if (s.players.length < 2 || s.players.length > 4) return;
-    game.startRound(s);
+    if (s.players.length < m.minPlayers || s.players.length > m.maxPlayers) return;
+    app.engine.startRound(s);
     broadcast();
     return;
   }
   if (act.a === 'nextRound') {
     if (!isHostSeat || s.phase !== 'roundEnd') return;
     prunePlayers(s);
-    if (s.players.length < 2) { toLobby(); return; }
-    game.startRound(s);
+    if (s.players.length < m.minPlayers) { toLobby(); return; }
+    app.engine.startRound(s);
     broadcast();
     return;
   }
@@ -56,7 +80,9 @@ function handleAction(seatId, act) {
     return;
   }
 
-  const res = game.applyAction(s, seatId, act);
+  // Engines never read the clock; anything time-dependent (mahjong's claim
+  // window) reads act.now, so tests can drive it deterministically.
+  const res = app.engine.applyAction(s, seatId, { ...act, now: Date.now() });
   if (res.ok) {
     broadcast();
   } else if (seatId === app.mySeat) {
@@ -75,19 +101,12 @@ function prunePlayers(s) {
   }
 }
 
-// End the match: back to the lobby with fresh totals.
+// End the match: back to the lobby with fresh totals. Pruning the player list
+// is the plumbing's job; clearing the game itself belongs to the engine.
 function toLobby() {
   const s = app.state;
   prunePlayers(s);
-  s.phase = 'lobby';
-  s.roundNumber = 0;
-  s.finisherIndex = null;
-  s.drawn = null;
-  s.deck = [];
-  s.discard = [];
-  s.roundScores = null;
-  s.log = [];
-  for (const p of s.players) { p.total = 0; p.setupFlips = 0; p.hand = []; }
+  app.engine.resetToLobby(s);
   ui.banner(null);
   broadcast();
 }
@@ -98,10 +117,10 @@ function broadcast() {
     for (const p of s.players) {
       if (p.seatId === app.mySeat || !p.connected) continue;
       const conn = app.seatToConn.get(p.seatId);
-      if (conn) app.netH.send(conn, { t: 'state', v: V, view: game.redact(s, p.seatId) });
+      if (conn) app.netH.send(conn, { t: 'state', v: V, view: app.engine.redact(s, p.seatId) });
     }
   }
-  app.view = game.redact(s, app.mySeat);
+  app.view = app.engine.redact(s, app.mySeat);
   ui.render(app.view, app.mySeat);
 }
 
@@ -142,12 +161,13 @@ function handleHello(conn, msg) {
     return;
   }
 
-  if (s.players.length >= 4) return reject('full');
+  const m = mode();
+  if (s.players.length >= m.maxPlayers) return reject('full');
   let finalName = name;
   let n = 2;
   while (s.players.some((p) => p.name === finalName)) finalName = `${name} (${n++})`;
   const seatId = newSeat();
-  game.addPlayer(s, seatId, conn.peer, finalName);
+  app.engine.addPlayer(s, seatId, conn.peer, finalName);
   bind(conn, seatId);
   app.netH.send(conn, { t: 'welcome', v: V, seatId, name: finalName, roomCode: s.roomCode });
   broadcast();
@@ -172,14 +192,15 @@ function handleGuestGone(conn) {
   broadcast();
 }
 
-function createGame(name) {
+async function createGame(name, modeId = DEFAULT_MODE) {
   ui.menuError(null);
   ui.menuStatus('Creating room…');
   app.role = 'host';
-  app.state = game.createState();
+  await activateMode(modeId, { needEngine: true });
+  app.state = app.engine.createState();
   app.mySeat = newSeat();
   app.state.hostSeat = app.mySeat;
-  game.addPlayer(app.state, app.mySeat, null, name);
+  app.engine.addPlayer(app.state, app.mySeat, null, name);
   app.netH = net.createHost({
     onOpen(code) {
       app.state.roomCode = code;
@@ -243,6 +264,8 @@ function resetToMenu(errorMsg = null) {
   app.netH = app.netG = null;
   app.role = null;
   app.mySeat = null;
+  app.modeId = null;
+  app.engine = null;
   app.state = null;
   app.view = null;
   app.connToSeat.clear();
@@ -275,12 +298,16 @@ ui.init({
 
 // ===== dev mode: ?dev=1 — full local game, no networking =====
 
-if (new URLSearchParams(location.search).get('dev')) {
+const devParams = new URLSearchParams(location.search);
+if (devParams.get('dev')) (async () => {
   app.role = 'dev';
-  app.state = game.createState();
+  await activateMode(devParams.get('mode') || DEFAULT_MODE, { needEngine: true });
+  const m = mode();
+  app.state = app.engine.createState();
   app.state.roomCode = 'DEV1';
-  const names = ['You', 'Ana', 'Ben'];
-  for (let i = 0; i < names.length; i++) game.addPlayer(app.state, 'd' + i, null, names[i]);
+  const names = ['You', 'Ana', 'Ben', 'Cy', 'Dee', 'Eli', 'Fay', 'Gus']
+    .slice(0, Math.max(m.minPlayers, Math.min(3, m.maxPlayers)));
+  for (let i = 0; i < names.length; i++) app.engine.addPlayer(app.state, 'd' + i, null, names[i]);
   app.state.hostSeat = 'd0';
   app.mySeat = 'd0';
 
@@ -302,4 +329,4 @@ if (new URLSearchParams(location.search).get('dev')) {
   document.body.appendChild(bar);
 
   broadcast();
-}
+})();
