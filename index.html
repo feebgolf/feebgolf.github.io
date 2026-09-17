@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#14532d">
   <title>feebgolf 🃏</title>
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
 </head>
 <body>
@@ -40,6 +40,7 @@
       <p class="subtitle">room code</p>
       <div id="lobby-code" class="room-code">····</div>
       <p id="lobby-mode" class="muted"></p>
+      <p id="lobby-link" class="error" hidden></p>
       <button id="btn-copy" class="btn small">Copy invite link</button>
       <ul id="lobby-players" class="player-list"></ul>
       <div id="lobby-settings" class="settings"></div>
@@ -65,9 +66,9 @@
       <div id="roundend-body"></div>
       <table id="scoreboard"></table>
       <div class="overlay-buttons">
-        <button id="btn-next-round" class="btn primary" hidden>Next round</button>
+        <button id="btn-ready" class="btn primary" hidden>Ready for next round</button>
         <button id="btn-to-lobby" class="btn ghost" hidden>Back to lobby</button>
-        <p id="roundend-wait" class="muted" hidden>Waiting for the host…</p>
+        <p id="roundend-wait" class="muted" hidden></p>
       </div>
     </div>
   </div>
@@ -162,6 +163,6 @@
   <div id="toast" hidden></div>
 
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-  <script type="module" src="js/main.js?v=8"></script>
+  <script type="module" src="js/main.js?v=9"></script>
 </body>
 </html>

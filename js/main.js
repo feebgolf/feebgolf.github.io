@@ -21,6 +21,8 @@ const app = {
   seatToConn: new Map(),
   timer: null,         // pending engine deadline (mahjong's claim window)
   modeGen: 0,          // bumped per mode load, so a stale import can't land
+  ready: new Set(),    // seats that have clicked Ready at this round's end
+  linkMsg: null,       // host only: why the room code isn't joinable right now
 };
 
 // The registry entry for the game in progress (falls back before one is chosen).
@@ -73,12 +75,14 @@ function handleAction(seatId, act) {
     broadcast();
     return;
   }
-  if (act.a === 'nextRound') {
-    if (!isHostSeat || s.phase !== 'roundEnd') return;
-    prunePlayers(s);
-    if (s.players.length < m.minPlayers) { toLobby(); return; }
-    app.engine.startRound(s);
-    broadcast();
+  // Nobody deals the next hand alone: every seat still at the table has to
+  // click Ready first. Readiness is shell plumbing, not rules — no engine
+  // knows about it, and all three modes get the same gate for free.
+  if (act.a === 'ready') {
+    if (s.phase !== 'roundEnd') return;
+    if (!s.players.some((p) => p.seatId === seatId && p.connected)) return;
+    app.ready.add(seatId);
+    settleRoundEnd();
     return;
   }
   // House rules: host only, and only before the cards are dealt.
@@ -109,6 +113,30 @@ function handleAction(seatId, act) {
   }
 }
 
+// A player who has dropped can't click anything, so they don't hold the round
+// hostage — nextRound() prunes them. An empty table isn't "all ready".
+function allReady(s) {
+  const here = s.players.filter((p) => p.connected);
+  return here.length > 0 && here.every((p) => app.ready.has(p.seatId));
+}
+
+// Deal again if the table is unanimous, otherwise just show everyone where the
+// count stands. Call this wherever readiness or the seat list can change while
+// the round-end overlay is up.
+function settleRoundEnd() {
+  if (allReady(app.state)) nextRound();
+  else broadcast();
+}
+
+function nextRound() {
+  const s = app.state;
+  prunePlayers(s);
+  app.ready.clear();
+  if (s.players.length < mode().minPlayers) { toLobby(); return; }
+  app.engine.startRound(s);
+  broadcast();
+}
+
 function prunePlayers(s) {
   for (const p of [...s.players]) {
     if (!p.connected && p.seatId !== app.mySeat) {
@@ -122,9 +150,20 @@ function prunePlayers(s) {
 function toLobby() {
   const s = app.state;
   prunePlayers(s);
+  app.ready.clear();
   app.engine.resetToLobby(s);
   ui.banner(null);
   broadcast();
+}
+
+// The engine redacts the rules; the shell stamps on what only it knows.
+function viewFor(seatId) {
+  const v = app.engine.redact(app.state, seatId);
+  if (v.phase === 'roundEnd') v.ready = [...app.ready];
+  // Only the host can do anything about the broker link, and only the host is
+  // holding the screen with the room code on it.
+  if (seatId === app.state.hostSeat && app.linkMsg) v.linkMsg = app.linkMsg;
+  return v;
 }
 
 function broadcast() {
@@ -133,10 +172,10 @@ function broadcast() {
     for (const p of s.players) {
       if (p.seatId === app.mySeat || !p.connected) continue;
       const conn = app.seatToConn.get(p.seatId);
-      if (conn) app.netH.send(conn, { t: 'state', v: V, view: app.engine.redact(s, p.seatId) });
+      if (conn) app.netH.send(conn, { t: 'state', v: V, view: viewFor(p.seatId) });
     }
   }
-  app.view = app.engine.redact(s, app.mySeat);
+  app.view = viewFor(app.mySeat);
   ui.render(app.view, app.mySeat);
   scheduleEngineTimer();
 }
@@ -190,6 +229,9 @@ function handleHello(conn, msg) {
     if (!ghost) return reject('in_progress');
     ghost.connected = true;
     ghost.peerId = conn.peer;
+    // They lost the overlay along with the page, so their old Ready doesn't
+    // count any more — the table waits for them to click it again.
+    app.ready.delete(ghost.seatId);
     bind(conn, ghost.seatId);
     app.netH.send(conn, {
       t: 'welcome', v: V, mode: app.modeId,
@@ -233,6 +275,8 @@ function handleGuestGone(conn) {
       onClick: () => dispatch({ a: 'toLobby' }),
     });
   }
+  // The seat we were waiting on may be the one that just vanished.
+  if (s.phase === 'roundEnd') { settleRoundEnd(); return; }
   broadcast();
 }
 
@@ -252,6 +296,14 @@ async function createGame(name, modeId = DEFAULT_MODE) {
       broadcast();
     },
     onFatal(msg) { resetToMenu(msg); },
+    // The room code lives on the broker, not in the game: losing it doesn't
+    // touch anyone already at the table, it just stops new joins — so say so
+    // on the lobby screen and carry on.
+    onLink(msg) {
+      if (app.linkMsg === msg) return;
+      app.linkMsg = msg;
+      if (app.state) broadcast();
+    },
     onHello(conn, msg) { handleHello(conn, msg); },
     onAction(conn, msg) {
       const seat = app.connToSeat.get(conn);
@@ -324,6 +376,8 @@ function resetToMenu(errorMsg = null) {
   app.timer = null;
   app.connToSeat.clear();
   app.seatToConn.clear();
+  app.ready.clear();
+  app.linkMsg = null;
   ui.useMode(null);
   ui.showScreen('menu');
   ui.menuStatus(null);
@@ -348,7 +402,7 @@ ui.init({
   leave,
   startGame: () => dispatch({ a: 'startGame' }),
   setSetting: (key, value) => dispatch({ a: 'setSetting', key, value }),
-  nextRound: () => dispatch({ a: 'nextRound' }),
+  ready: () => dispatch({ a: 'ready' }),
   toLobby: () => dispatch({ a: 'toLobby' }),
 });
 

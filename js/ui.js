@@ -57,7 +57,7 @@ export function init(handlers) {
   $('btn-start').addEventListener('click', () => H.startGame());
   $('btn-leave').addEventListener('click', () => H.leave());
   $('btn-copy').addEventListener('click', copyInvite);
-  $('btn-next-round').addEventListener('click', () => H.nextRound());
+  $('btn-ready').addEventListener('click', () => H.ready());
   $('btn-to-lobby').addEventListener('click', () => H.toLobby());
 }
 
@@ -191,6 +191,10 @@ function renderLobby() {
   }));
   const isHost = mySeat === view.hostSeat;
   const n = view.players.length;
+  // A dropped broker link leaves the code on screen looking fine while joins
+  // quietly fail, which is the worst of both worlds — name it.
+  $('lobby-link').textContent = view.linkMsg || '';
+  $('lobby-link').hidden = !view.linkMsg;
   renderSettings(view.settingsSchema || [], view.settings || {}, isHost);
   $('btn-start').hidden = !isHost;
   $('btn-start').disabled = n < m.minPlayers;
@@ -327,10 +331,15 @@ function renderRoundEnd() {
 
   modeView?.renderRoundEnd({ view, prev, mySeat }, $('roundend-body'));
 
+  // Who's clicked Ready. The host stamps this onto the view; an older host
+  // won't, so treat a missing list as nobody-yet rather than crashing.
+  const ready = new Set(view.ready || []);
+
   // scoreboard sorted by running total, the mode's winning direction first
   const rows = view.players
     .map((p) => ({
-      name: p.name + (p.seatId === mySeat ? ' (you)' : ''),
+      name: p.name + (p.seatId === mySeat ? ' (you)' : '')
+        + (ready.has(p.seatId) ? ' ✓' : ''),
       round: scores.find((r) => r.seatId === p.seatId)?.score ?? 0,
       total: p.total,
     }))
@@ -352,10 +361,32 @@ function renderRoundEnd() {
     }
   }
 
-  const isHost = mySeat === view.hostSeat;
-  $('btn-next-round').hidden = !isHost;
-  $('btn-to-lobby').hidden = !isHost;
-  $('roundend-wait').hidden = isHost;
+  // The next deal needs the whole table, so everyone gets the same button and
+  // the round only moves on once the last seat has clicked it. Players who
+  // have dropped can't click, so they aren't counted — they get pruned.
+  const here = view.players.filter((p) => p.connected);
+  const iAmReady = ready.has(mySeat);
+  const waitingOn = here.filter((p) => !ready.has(p.seatId) && p.seatId !== mySeat);
+  const btn = $('btn-ready');
+  btn.hidden = false;
+  btn.disabled = iAmReady;
+  btn.textContent = iAmReady ? 'Ready ✓' : 'Ready for next round';
+  const wait = $('roundend-wait');
+  wait.hidden = false;
+  const count = `${here.filter((p) => ready.has(p.seatId)).length}/${here.length} ready`;
+  if (waitingOn.length) {
+    const names = waitingOn.map((p) => p.name);
+    const who = names.length > 2
+      ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+      : names.join(' and ');
+    wait.textContent = `Waiting for ${who}… (${count})`;
+  } else if (!iAmReady) {
+    wait.textContent = `Everyone else is ready — you're the last one (${count})`;
+  } else {
+    wait.textContent = 'Dealing the next round…';
+  }
+
+  $('btn-to-lobby').hidden = mySeat !== view.hostSeat;
 }
 
 // ===== toast + banner =====

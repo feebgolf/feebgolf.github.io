@@ -15,5 +15,11 @@ export async function runTests(only = null) {
     const { runTests: run } = await m.tests();
     for (const r of run()) out.push({ ...r, name: `[${m.id}] ${r.name}` });
   }
+  // The transport isn't a mode, but it has the same kind of logic worth
+  // pinning down. `run-tests.mjs net` runs just this suite.
+  if (!only || only === 'net') {
+    const { runTests: run } = await import('./net-tests.js');
+    for (const r of run()) out.push({ ...r, name: `[net] ${r.name}` });
+  }
   return out;
 }

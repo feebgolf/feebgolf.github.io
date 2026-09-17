@@ -11,8 +11,9 @@ const REQUIRED_FN = [
   'createState', 'addPlayer', 'startRound', 'applyAction',
   'redact', 'finalScores', 'resetToLobby',
 ];
-// main.js intercepts these before applyAction, so no engine may claim them.
-const RESERVED = ['startGame', 'nextRound', 'toLobby', 'setSetting'];
+// The shell owns round and lobby control under these names, so no engine may
+// claim them — main.js handles them itself and never forwards them on.
+const RESERVED = ['startGame', 'nextRound', 'ready', 'toLobby', 'setSetting'];
 // Keys that would mean hidden information had leaked into a guest's view.
 const SECRET_KEYS = ['deck', 'rng', 'wall', 'stock', 'hands'];
 

@@ -23,6 +23,9 @@ host is running. Games in progress are registered but not offered in the menu.
   before the deal; everyone else sees them read-only.
 - The host's browser runs the game; if the host closes their tab, the game ends.
   A player who accidentally refreshes can rejoin with the same name.
+- At the end of a round, everyone sees the scoreboard and clicks **Ready**. The
+  next hand is dealt once the whole table has — nobody gets skipped past it.
+  Players who have dropped aren't waited for.
 
 ### Golf house rules
 
@@ -128,7 +131,8 @@ python3 -m http.server 8000
   browser windows.
 - Engine tests: http://localhost:8000/test.html (same tests as
   `node js/run-tests.mjs`). Both take a mode filter — `?mode=golf` and
-  `node js/run-tests.mjs golf`.
+  `node js/run-tests.mjs golf`; `net` runs the transport suite, which stubs
+  PeerJS and the DOM so the reconnect paths are testable without a phone.
 
 ### Code layout
 
@@ -143,6 +147,7 @@ python3 -m http.server 8000
 | `js/cards.js` `js/cardui.js` `js/fx.js` | shared deck, card DOM, card-flight animations |
 | `js/settings.js` | house-rule schemas: defaults and validation |
 | `js/modes/contract-tests.js` | the interface every engine must satisfy |
+| `js/net-tests.js` | the transport's reconnect and failure-reporting paths |
 
 Adding a game means writing an engine, a view and a test file under
 `js/modes/<game>/`, then one entry in the registry. The engine is DOM-free so
@@ -156,10 +161,21 @@ casino.)
 
 ## Known limitations
 
-- The free PeerJS broker has no TURN relay, so a small fraction of
-  connections fail on restrictive NATs (most commonly two players on
-  *different* mobile-carrier networks). Home wifi is fine. If it ever matters,
-  add TURN `iceServers` to the `new Peer(...)` config in `js/net.js`.
+- **No TURN relay, so phone-to-phone over mobile data often won't connect.**
+  Two players behind different carrier NATs have no direct route to each
+  other, and a relay is the only fix. PeerJS ships relay hostnames of its own
+  (`eu-0`/`us-0.turn.peerjs.com`) but they no longer resolve at all, so the
+  library's defaults are STUN-only in practice — which is why home wifi works
+  and cellular often doesn't. `js/net.js` now sets its own `iceServers` with
+  working STUN plus an empty `TURN` slot: paste in one entry with static
+  credentials (Metered and ExpressTurn both issue them on free tiers) and
+  phone-to-phone starts working. Prefer a relay that answers on **443/TCP** —
+  that's the port that escapes locked-down mobile and guest networks.
+- The room code is a reservation on the public PeerJS broker, and a phone that
+  sleeps or switches apps loses it, so joins fail while the host is away from
+  the tab. The host re-registers on the keepalive and the moment the tab comes
+  back, and says so on the lobby screen while the code is down. Players
+  already at the table are unaffected — only *new* joins need the broker.
 - The game lives in the host's tab: host closes tab ⇒ game over.
 - Bumping `?v=` on the `index.html` script tag busts `main.js` but **not the
   modules it imports**, so right after a deploy a browser can pair new
